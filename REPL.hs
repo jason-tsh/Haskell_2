@@ -34,10 +34,12 @@ process st (Print e)
 -- 'process' will call 'repl' when done, so the system loops.
 
 repl :: LState -> IO ()
-repl st = do putStr ("> ")
+repl st = do putStr "> "
              inp <- getLine
-             case parse pCommand inp of
-                  [(cmd, "")] -> -- Must parse entire input
-                          process st cmd
-                  _ -> do putStrLn "Parse error"
-                          repl st
+             if inp == "quit"
+             then return ()
+             else case parse pCommand inp of
+                    [(cmd, "")] -> -- Must parse entire input
+                                   process st cmd
+                    _ -> do putStrLn "Parse error"
+                            repl st
