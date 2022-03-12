@@ -35,7 +35,9 @@ digitToInt x = fromEnum x - fromEnum '0'
 
 pCommand :: Parser Command
 pCommand = do t <- letter
+              space
               char '='
+              space
               e <- pExpr
               return (Set [t] e)
             ||| do string "print"
@@ -45,10 +47,13 @@ pCommand = do t <- letter
 
 pExpr :: Parser Expr
 pExpr = do t <- pTerm
+           space
            do char '+'
+              space
               e <- pExpr
               return (Add t e)
             ||| do char '-'
+                   space
                    e <- pExpr
                    error "Subtraction not yet implemented!"
                  ||| return t
@@ -59,16 +64,21 @@ pFactor = do d <- digit
            ||| do v <- letter
                   error "Variables not yet implemented"
                 ||| do char '('
+                       space
                        e <- pExpr
+                       space
                        char ')'
                        return e
 
 pTerm :: Parser Expr
 pTerm = do f <- pFactor
+           space
            do char '*'
+              space
               t <- pTerm
               error "Multiplication not yet implemented"
             ||| do char '/'
+                   space
                    t <- pTerm
                    error "Division not yet implemented"
                  ||| return f
