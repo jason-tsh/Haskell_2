@@ -12,21 +12,25 @@ initLState = LState []
 -- that name and value added.
 -- If it already exists, remove the old value
 updateVars :: Name -> Int -> [(Name, Int)] -> [(Name, Int)]
-updateVars = undefined
+updateVars name val vars = (name, val) : filter (\var -> fst var /= name) vars
 
 -- Return a new set of variables with the given name removed
 dropVar :: Name -> [(Name, Int)] -> [(Name, Int)]
-dropVar = undefined
+dropVar name = filter (\var -> fst var /= name)
 
 process :: LState -> Command -> IO ()
-process st (Set var e) 
-     = do let st' = undefined
+process st (Set var e)
+     = do let st' = case eval (vars st) e of
+                    Just val -> st {vars = updateVars var val $ vars st}
+                    Nothing -> st
           -- st' should include the variable set to the result of evaluating e
           repl st'
-process st (Print e) 
-     = do let st' = undefined
+process st (Print e)
+     = do case eval (vars st) e of
+                    Just val -> print val
+                    Nothing -> putStrLn "Parse error"
           -- Print the result of evaluation
-          repl st'
+          repl st
 
 -- Read, Eval, Print Loop
 -- This reads and parses the input using the pCommand parser, and calls

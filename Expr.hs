@@ -23,6 +23,13 @@ eval vars (Val x) = Just x -- for values, just give the value directly
 eval vars (Add x y) = Nothing -- return an error (because it's not implemented yet!)
 eval vars (ToString x) = Nothing
 
+toInt :: String -> Int
+toInt = go 0
+  where go acc [] = acc
+        go acc (x:xs) | 0 <= val && val <= 9 = go (10 * acc + val) xs
+                      | otherwise = 0
+          where val = digitToInt x
+
 digitToInt :: Char -> Int
 digitToInt x = fromEnum x - fromEnum '0'
 
@@ -43,14 +50,14 @@ pExpr = do t <- pTerm
               return (Add t e)
             ||| do char '-'
                    e <- pExpr
-                   error "Subtraction not yet implemented!" 
+                   error "Subtraction not yet implemented!"
                  ||| return t
 
 pFactor :: Parser Expr
 pFactor = do d <- digit
              return (Val (digitToInt d))
            ||| do v <- letter
-                  error "Variables not yet implemented" 
+                  error "Variables not yet implemented"
                 ||| do char '('
                        e <- pExpr
                        char ')'
@@ -60,8 +67,8 @@ pTerm :: Parser Expr
 pTerm = do f <- pFactor
            do char '*'
               t <- pTerm
-              error "Multiplication not yet implemented" 
+              error "Multiplication not yet implemented"
             ||| do char '/'
                    t <- pTerm
-                   error "Division not yet implemented" 
+                   error "Division not yet implemented"
                  ||| return f
