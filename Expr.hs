@@ -20,7 +20,11 @@ eval :: [(Name, Int)] -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
         Maybe Int -- Result (if no errors such as missing variables)
 eval vars (Val x) = Just x -- for values, just give the value directly
-eval vars (Add x y) = Nothing -- return an error (because it's not implemented yet!)
+eval vars (Add x y) = case eval vars x of
+                        Just xval -> case eval vars y of
+                                       Just yval -> Just $ xval + yval
+                                       Nothing -> Nothing
+                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
 eval vars (ToString x) = Nothing
 
 toInt :: String -> Int
