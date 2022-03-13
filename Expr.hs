@@ -59,8 +59,8 @@ pExpr = do t <- pTerm
                  ||| return t
 
 pFactor :: Parser Expr
-pFactor = do d <- digit
-             return (Val (digitToInt d))
+pFactor = do d <- many digit
+             return (Val (toInt d))
            ||| do v <- letter
                   error "Variables not yet implemented"
                 ||| do char '('
