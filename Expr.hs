@@ -38,20 +38,17 @@ pCommand = do t <- letter
               space
               char '='
               space
-              e <- pExpr
-              return (Set [t] e)
+              Set [t] <$> pExpr
             ||| do string "print"
                    space
-                   e <- pExpr
-                   return (Print e)
+                   Print <$> pExpr
 
 pExpr :: Parser Expr
 pExpr = do t <- pTerm
            space
            do char '+'
               space
-              e <- pExpr
-              return (Add t e)
+              Add t <$> pExpr
             ||| do char '-'
                    space
                    e <- pExpr
@@ -61,6 +58,9 @@ pExpr = do t <- pTerm
 pFactor :: Parser Expr
 pFactor = do d <- many digit
              return (Val (toInt d))
+          ||| do char '-'
+                 n <- many digit
+                 return (Val (-toInt n))
            ||| do v <- letter
                   error "Variables not yet implemented"
                 ||| do char '('

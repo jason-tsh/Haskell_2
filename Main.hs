@@ -3,6 +3,8 @@ module Main where
 import Parsing
 import Expr
 import REPL
+import System.IO
 
 main :: IO ()
-main = repl initLState
+main = do hSetBuffering stdout NoBuffering
+          repl initLState

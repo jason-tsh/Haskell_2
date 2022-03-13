@@ -20,15 +20,16 @@ dropVar name = filter (\var -> fst var /= name)
 
 process :: LState -> Command -> IO ()
 process st (Set var e)
-     = do let st' = case eval (vars st) e of
-                    Just val -> st {vars = updateVars var val $ vars st}
+     = do let st' = case eval list e of
+                    Just val -> st {vars = updateVars var val list}
                     Nothing -> st
+                    where list = vars st
           -- st' should include the variable set to the result of evaluating e
-          repl st'
+          repl st'               
 process st (Print e)
      = do case eval (vars st) e of
                     Just val -> print val
-                    Nothing -> putStrLn "Parse error"
+                    Nothing -> putStrLn "No entry found"
           -- Print the result of evaluation
           repl st
 
