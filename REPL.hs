@@ -25,7 +25,7 @@ process st (Set var e)
                     Nothing -> st
                     where list = vars st
           -- st' should include the variable set to the result of evaluating e
-          repl st'               
+          repl st'
 process st (Print e)
      = do case eval (vars st) e of
                     Just val -> print val
