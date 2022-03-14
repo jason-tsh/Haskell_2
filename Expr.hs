@@ -73,8 +73,7 @@ pExpr = do t <- pTerm
               Add t <$> pExpr
             ||| do char '-'
                    space
-                   e <- pExpr
-                   error "Subtraction not yet implemented!"
+                   Sub t <$> pExpr
                  ||| return t
 
 pFactor :: Parser Expr
@@ -97,10 +96,8 @@ pTerm = do f <- pFactor
            space
            do char '*'
               space
-              t <- pTerm
-              error "Multiplication not yet implemented"
+              Mul f <$> pTerm
             ||| do char '/'
                    space
-                   t <- pTerm
-                   error "Division not yet implemented"
+                   Div f <$> pTerm
                  ||| return f
