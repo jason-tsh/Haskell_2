@@ -30,22 +30,22 @@ eval vars (Add x y) = case eval vars x of
                         Just xval -> case eval vars y of
                                        Just yval -> Just $ xval + yval
                                        Nothing -> Nothing
-                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
+                        Nothing -> Nothing
 eval vars (Sub x y) = case eval vars x of
                         Just xval -> case eval vars y of
                                        Just yval -> Just $ xval - yval
                                        Nothing -> Nothing
-                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
+                        Nothing -> Nothing
 eval vars (Mul x y) = case eval vars x of
                         Just xval -> case eval vars y of
                                        Just yval -> Just $ xval * yval
                                        Nothing -> Nothing
-                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
+                        Nothing -> Nothing
 eval vars (Div x y) = case eval vars x of
                         Just xval -> case eval vars y of
                                        Just yval -> Just $ xval `div` yval
                                        Nothing -> Nothing
-                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
+                        Nothing -> Nothing
 eval vars (ToString x) = Nothing
 
 toInt :: String -> Int
