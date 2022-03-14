@@ -4,12 +4,18 @@ import Parsing
 
 type Name = String
 
+data Value = IntVal Int | StrVal String
+instance Show Value where
+  show (IntVal val) = show val 
+  show (StrVal val) = show val 
+
 -- At first, 'Expr' contains only addition, conversion to strings, and integer
 -- values. You will need to add other operations, and variables
 data Expr = Add Expr Expr
           | Sub Expr Expr
           | Mul Expr Expr
-          | Div Expr Expr          
+          | Div Expr Expr
+          | ToInt Expr
           | ToString Expr
           | Val Int
           | Get Name
@@ -21,32 +27,33 @@ data Command = Set Name Expr -- assign an expression to a variable name
              | Quit
   deriving Show
 
-eval :: [(Name, Int)] -> -- Variable name to value mapping
+eval :: [(Name, Value)] -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
-        Maybe Int -- Result (if no errors such as missing variables)
+        Maybe Value -- Result (if no errors such as missing variables)
 eval vars (Get x) = lookup x vars
-eval vars (Val x) = Just x -- for values, just give the value directly
+eval vars (Val x) = Just $ IntVal x -- for values, just give the value directly
 eval vars (Add x y) = case eval vars x of
-                        Just xval -> case eval vars y of
-                                       Just yval -> Just $ xval + yval
-                                       Nothing -> Nothing
-                        Nothing -> Nothing
+                        Just (IntVal xval) -> case eval vars y of
+                                       Just (IntVal yval) -> Just $ IntVal (xval + yval)
+                                       _ -> Nothing
+                        _ -> Nothing
 eval vars (Sub x y) = case eval vars x of
-                        Just xval -> case eval vars y of
-                                       Just yval -> Just $ xval - yval
-                                       Nothing -> Nothing
-                        Nothing -> Nothing
+                        Just (IntVal xval) -> case eval vars y of
+                                       Just (IntVal yval) -> Just $ IntVal (xval - yval)
+                                       _ -> Nothing
+                        _ -> Nothing
 eval vars (Mul x y) = case eval vars x of
-                        Just xval -> case eval vars y of
-                                       Just yval -> Just $ xval * yval
-                                       Nothing -> Nothing
-                        Nothing -> Nothing
+                        Just (IntVal xval) -> case eval vars y of
+                                       Just (IntVal yval) -> Just $ IntVal (xval * yval)
+                                       _ -> Nothing
+                        _ -> Nothing
 eval vars (Div x y) = case eval vars x of
-                        Just xval -> case eval vars y of
-                                       Just yval -> Just $ xval `div` yval
-                                       Nothing -> Nothing
-                        Nothing -> Nothing
-eval vars (ToString x) = Nothing
+                        Just (IntVal xval) -> case eval vars y of
+                                       Just (IntVal yval) -> Just $ IntVal (xval `div` yval)
+                                       _ -> Nothing
+                        _ -> Nothing
+eval vars (ToInt x) = Just $ IntVal $ toInt $ show x
+eval vars (ToString x) = Just $ StrVal $ show x
 
 toInt :: String -> Int
 toInt = go 0

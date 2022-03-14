@@ -3,7 +3,7 @@ module REPL where
 import Expr
 import Parsing
 
-data LState = LState { vars :: [(Name, Int)] }
+data LState = LState { vars :: [(Name, Value)] }
 
 initLState :: LState
 initLState = LState []
@@ -11,11 +11,11 @@ initLState = LState []
 -- Given a variable name and a value, return a new set of variables with
 -- that name and value added.
 -- If it already exists, remove the old value
-updateVars :: Name -> Int -> [(Name, Int)] -> [(Name, Int)]
+updateVars :: Name -> Value -> [(Name, Value)] -> [(Name, Value)]
 updateVars name val vars = (name, val) : filter (\var -> fst var /= name) vars
 
 -- Return a new set of variables with the given name removed
-dropVar :: Name -> [(Name, Int)] -> [(Name, Int)]
+dropVar :: Name -> [(Name, Value)] -> [(Name, Value)]
 dropVar name = filter (\var -> fst var /= name)
 
 process :: LState -> Command -> IO ()
