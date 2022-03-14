@@ -7,6 +7,9 @@ type Name = String
 -- At first, 'Expr' contains only addition, conversion to strings, and integer
 -- values. You will need to add other operations, and variables
 data Expr = Add Expr Expr
+          | Sub Expr Expr
+          | Mul Expr Expr
+          | Div Expr Expr          
           | ToString Expr
           | Val Int
   deriving Show
@@ -23,6 +26,21 @@ eval vars (Val x) = Just x -- for values, just give the value directly
 eval vars (Add x y) = case eval vars x of
                         Just xval -> case eval vars y of
                                        Just yval -> Just $ xval + yval
+                                       Nothing -> Nothing
+                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
+eval vars (Sub x y) = case eval vars x of
+                        Just xval -> case eval vars y of
+                                       Just yval -> Just $ xval - yval
+                                       Nothing -> Nothing
+                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
+eval vars (Mul x y) = case eval vars x of
+                        Just xval -> case eval vars y of
+                                       Just yval -> Just $ xval * yval
+                                       Nothing -> Nothing
+                        Nothing -> Nothing -- return an error (because it's not implemented yet!)
+eval vars (Div x y) = case eval vars x of
+                        Just xval -> case eval vars y of
+                                       Just yval -> Just $ xval `div` yval
                                        Nothing -> Nothing
                         Nothing -> Nothing -- return an error (because it's not implemented yet!)
 eval vars (ToString x) = Nothing
