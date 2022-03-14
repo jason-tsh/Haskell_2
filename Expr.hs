@@ -12,16 +12,19 @@ data Expr = Add Expr Expr
           | Div Expr Expr          
           | ToString Expr
           | Val Int
+          | Get Name
   deriving Show
 
 -- These are the REPL commands
 data Command = Set Name Expr -- assign an expression to a variable name
              | Print Expr    -- evaluate an expression and print the result
+             | Quit
   deriving Show
 
 eval :: [(Name, Int)] -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
         Maybe Int -- Result (if no errors such as missing variables)
+eval vars (Get x) = lookup x vars
 eval vars (Val x) = Just x -- for values, just give the value directly
 eval vars (Add x y) = case eval vars x of
                         Just xval -> case eval vars y of
@@ -64,6 +67,9 @@ pCommand = do t <- letter
             ||| do string "print"
                    space
                    Print <$> pExpr
+                 ||| do space
+                        string "quit"
+                        return Quit
 
 pExpr :: Parser Expr
 pExpr = do t <- pTerm
@@ -79,9 +85,6 @@ pExpr = do t <- pTerm
 pFactor :: Parser Expr
 pFactor = do d <- many digit
              return (Val (toInt d))
-          ||| do char '-'
-                 n <- many digit
-                 return (Val (-toInt n))
            ||| do v <- letter
                   error "Variables not yet implemented"
                 ||| do char '('

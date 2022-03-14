@@ -20,7 +20,8 @@ dropVar name = filter (\var -> fst var /= name)
 
 process :: LState -> Command -> IO ()
 process st (Set var e)
-     = do let st' = case eval list e of
+     = do print (Set var e)
+          let st' = case eval list e of
                     Just val -> st {vars = updateVars var val list}
                     Nothing -> st
                     where list = vars st
@@ -32,6 +33,7 @@ process st (Print e)
                     Nothing -> putStrLn "No entry found"
           -- Print the result of evaluation
           repl st
+process st Quit = return ()
 
 -- Read, Eval, Print Loop
 -- This reads and parses the input using the pCommand parser, and calls
@@ -41,9 +43,7 @@ process st (Print e)
 repl :: LState -> IO ()
 repl st = do putStr "> "
              inp <- getLine
-             if inp == "quit"
-             then return ()
-             else case parse pCommand inp of
+             case parse pCommand inp of
                     [(cmd, "")] -> -- Must parse entire input
                                    process st cmd
                     _ -> do putStrLn "Parse error"
