@@ -4,10 +4,14 @@ import Parsing
 
 type Name = String
 
-data Value = IntVal Int | StrVal String
+data Value = NumVal Numeric | StrVal String
+
 instance Show Value where
-  show (IntVal val) = show val 
-  show (StrVal val) = show val 
+  show (NumVal val) = show val
+  show (StrVal val) = show val
+
+data Numeric = Int Int | Float Double
+  deriving Show
 
 -- At first, 'Expr' contains only addition, conversion to strings, and integer
 -- values. You will need to add other operations, and variables
@@ -17,7 +21,8 @@ data Expr = Add Expr Expr
           | Div Expr Expr
           | ToInt Expr
           | ToString Expr
-          | Val Int
+          | Concat Expr Expr
+          | Val Numeric
           | Get Name
   deriving Show
 
@@ -31,29 +36,30 @@ eval :: [(Name, Value)] -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
         Maybe Value -- Result (if no errors such as missing variables)
 eval vars (Get x) = lookup x vars
-eval vars (Val x) = Just $ IntVal x -- for values, just give the value directly
+eval vars (Val x) = Just $ NumVal x -- for values, just give the value directly
 eval vars (Add x y) = case eval vars x of
-                        Just (IntVal xval) -> case eval vars y of
-                                       Just (IntVal yval) -> Just $ IntVal (xval + yval)
+                        Just (NumVal (Int xval)) -> case eval vars y of
+                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval + yval)
                                        _ -> Nothing
                         _ -> Nothing
 eval vars (Sub x y) = case eval vars x of
-                        Just (IntVal xval) -> case eval vars y of
-                                       Just (IntVal yval) -> Just $ IntVal (xval - yval)
+                        Just (NumVal (Int xval)) -> case eval vars y of
+                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval - yval)
                                        _ -> Nothing
                         _ -> Nothing
 eval vars (Mul x y) = case eval vars x of
-                        Just (IntVal xval) -> case eval vars y of
-                                       Just (IntVal yval) -> Just $ IntVal (xval * yval)
+                        Just (NumVal (Int xval)) -> case eval vars y of
+                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval * yval)
                                        _ -> Nothing
                         _ -> Nothing
 eval vars (Div x y) = case eval vars x of
-                        Just (IntVal xval) -> case eval vars y of
-                                       Just (IntVal yval) -> Just $ IntVal (xval `div` yval)
+                        Just (NumVal (Int xval)) -> case eval vars y of
+                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval `div` yval)
                                        _ -> Nothing
                         _ -> Nothing
-eval vars (ToInt x) = Just $ IntVal $ toInt $ show x
+eval vars (ToInt x) = Just $ NumVal $ Int $ toInt $ show x
 eval vars (ToString x) = Just $ StrVal $ show x
+eval vars (Concat x y) = Just $ StrVal $ show x ++ show y
 
 toInt :: String -> Int
 toInt = go 0
@@ -81,9 +87,12 @@ pCommand = do t <- letter
 pExpr :: Parser Expr
 pExpr = do t <- pTerm
            space
-           do char '+'
+           do string "++"
               space
-              Add t <$> pExpr
+              Concat t <$> pExpr
+            ||| do char '+'
+                   space
+                   Add t <$> pExpr
             ||| do char '-'
                    space
                    Sub t <$> pExpr
@@ -91,7 +100,11 @@ pExpr = do t <- pTerm
 
 pFactor :: Parser Expr
 pFactor = do d <- many digit
-             return (Val (toInt d))
+             return (Val $ Int $ toInt d)
+           ||| do d <- many digit
+                  char '.'
+                  f <- many digit
+                  return (Val $ Float $ read $ d <> "." <> f)
            ||| do v <- letter
                   error "Variables not yet implemented"
                 ||| do char '('
