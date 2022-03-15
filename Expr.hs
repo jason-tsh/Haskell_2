@@ -7,7 +7,8 @@ type Name = String
 data Value = NumVal Numeric | StrVal String
 
 instance Show Value where
-  show (NumVal val) = show val
+  show (NumVal (Int val)) = show val
+  show (NumVal (Float val)) = show val
   show (StrVal val) = show val
 
 data Numeric = Int Int | Float Double
@@ -37,29 +38,20 @@ eval :: [(Name, Value)] -> -- Variable name to value mapping
         Maybe Value -- Result (if no errors such as missing variables)
 eval vars (Get x) = lookup x vars
 eval vars (Val x) = Just $ NumVal x -- for values, just give the value directly
-eval vars (Add x y) = case eval vars x of
-                        Just (NumVal (Int xval)) -> case eval vars y of
-                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval + yval)
-                                       _ -> Nothing
-                        _ -> Nothing
-eval vars (Sub x y) = case eval vars x of
-                        Just (NumVal (Int xval)) -> case eval vars y of
-                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval - yval)
-                                       _ -> Nothing
-                        _ -> Nothing
-eval vars (Mul x y) = case eval vars x of
-                        Just (NumVal (Int xval)) -> case eval vars y of
-                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval * yval)
-                                       _ -> Nothing
-                        _ -> Nothing
-eval vars (Div x y) = case eval vars x of
-                        Just (NumVal (Int xval)) -> case eval vars y of
-                                       Just (NumVal (Int yval)) -> Just $ NumVal $ Int (xval `div` yval)
-                                       _ -> Nothing
-                        _ -> Nothing
+eval vars (Add x y) = numOp vars (+) x y
+eval vars (Sub x y) = numOp vars (-) x y
+eval vars (Mul x y) = numOp vars (*) x y
+eval vars (Div x y) = numOp vars div x y
 eval vars (ToInt x) = Just $ NumVal $ Int $ toInt $ show x
 eval vars (ToString x) = Just $ StrVal $ show x
 eval vars (Concat x y) = Just $ StrVal $ show x ++ show y
+
+numOp :: [(Name, Value)] -> (Int -> Int -> Int) -> Expr -> Expr -> Maybe Value
+numOp vars f x y = case eval vars x of
+                      Just (NumVal (Int xval)) -> case eval vars y of
+                                     Just (NumVal (Int yval)) -> Just $ NumVal $ Int (f xval yval)
+                                     _ -> Nothing
+                      _ -> Nothing
 
 toInt :: String -> Int
 toInt = go 0
@@ -74,53 +66,55 @@ digitToInt x = fromEnum x - fromEnum '0'
 pCommand :: Parser Command
 pCommand = do t <- letter
               space
-              char '='
-              space
+              symbol "="
               Set [t] <$> pExpr
-            ||| do string "print"
+            ||| do symbol "print"
                    space
                    Print <$> pExpr
                  ||| do space
-                        string "quit"
+                        symbol "quit"
                         return Quit
 
 pExpr :: Parser Expr
 pExpr = do t <- pTerm
            space
-           do string "++"
+           do symbol "++"
               space
               Concat t <$> pExpr
-            ||| do char '+'
-                   space
+            ||| do symbol "+"
                    Add t <$> pExpr
-            ||| do char '-'
-                   space
+            ||| do symbol "-"
                    Sub t <$> pExpr
                  ||| return t
 
 pFactor :: Parser Expr
-pFactor = do d <- many digit
-             return (Val $ Int $ toInt d)
+pFactor = do string "(-"
+             d <- many digit
+             do char ')'
+                return (Val $ Int $ negate $ toInt d) -- negative integer
+              ||| do char '.'
+                     f <- many digit
+                     char ')'
+                     return (Val $ Float $ negate $ read $ d <> "." <> f) -- negative float
            ||| do d <- many digit
-                  char '.'
-                  f <- many digit
-                  return (Val $ Float $ read $ d <> "." <> f)
-           ||| do v <- letter
-                  error "Variables not yet implemented"
-                ||| do char '('
-                       space
-                       e <- pExpr
-                       space
-                       char ')'
-                       return e
+                  do char '.'
+                     f <- many digit
+                     return (Val $ Float $ read $ d <> "." <> f) -- positive float
+                   ||| return (Val $ Int $ toInt d) -- positive integer
+           ||| do v <- many letter
+                  return $ Get v -- variable
+           ||| do char '('
+                  space
+                  e <- pExpr
+                  space
+                  char ')'
+                  return e
 
 pTerm :: Parser Expr
 pTerm = do f <- pFactor
-           space
-           do char '*'
-              space
+           space 
+           do symbol "*"
               Mul f <$> pTerm
-            ||| do char '/'
-                   space
+            ||| do symbol "/"
                    Div f <$> pTerm
                  ||| return f
