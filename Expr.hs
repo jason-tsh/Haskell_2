@@ -41,10 +41,11 @@ eval vars (Val x) = Just x -- for values, just give the value directly
 eval vars (Add x y) = numOp vars (+) x y
 eval vars (Sub x y) = numOp vars (-) x y
 eval vars (Mul x y) = numOp vars (*) x y
-eval vars (Div x y) = numOp vars div x y
+eval vars (Div x y) = numOp vars quot x y
 eval vars (ToInt x) = Just $ NumVal $ Int $ toInt $ show x
 eval vars (ToString x) = Just $ StrVal $ show x
-eval vars (Concat x y) = Just $ StrVal $ show x ++ show y
+eval vars (Concat x y) = Just $ StrVal $ go x ++ go y
+                          where go x = maybe "**Error**" show (eval vars x)
 
 numOp :: [(Name, Value)] -> (Int -> Int -> Int) -> Expr -> Expr -> Maybe Value
 numOp vars f x y = case eval vars x of
@@ -65,14 +66,11 @@ digitToInt x = fromEnum x - fromEnum '0'
 
 pCommand :: Parser Command
 pCommand = do t <- many1 letter
-              space
               symbol "="
               Set t <$> pExpr
             ||| do symbol "print"
-                   space
                    Print <$> pExpr
-                 ||| do space
-                        symbol "quit"
+                 ||| do symbol "quit"
                         return Quit
 
 pExpr :: Parser Expr
@@ -85,28 +83,22 @@ pExpr = do t <- pTerm
                    Add t <$> pExpr
             ||| do symbol "-"
                    Sub t <$> pExpr
+            ||| do symbol "toInt("
+                   char '\"'
+                   n <- pNum
+                   char '\"'
+                   symbol ")"
+                   return $ ToInt n
                  ||| return t
 
 pFactor :: Parser Expr
-pFactor = do string "(-"
-             d <- many1 digit
-             do char ')'
-                return (Val $ NumVal $ Int $ negate $ toInt d) -- negative integer
-              ||| do char '.'
-                     f <- many1 digit
-                     char ')'
-                     return (Val $ NumVal $ Float $ negate $ read $ d <> "." <> f) -- negative float
-           ||| do d <- many1 digit
-                  do char '.'
-                     f <- many1 digit
-                     return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float
-                   ||| return (Val $ NumVal $ Int $ toInt d) -- positive integer
+pFactor = do pNum
            ||| do v <- many1 letter
                   return $ Get v -- variable
            ||| do char '\"'
-                  v <- many1 letter
+                  v <- many $ sat (/= '\"')
                   char '\"'
-                  return (Val $ StrVal v) -- variable
+                  return (Val $ StrVal v) -- string (empty string is possible)
            ||| do char '('
                   space
                   e <- pExpr
@@ -114,9 +106,24 @@ pFactor = do string "(-"
                   char ')'
                   return e
 
+pNum :: Parser Expr
+pNum = do string "(-"
+          d <- many1 digit
+          do char ')'
+             return (Val $ NumVal $ Int $ negate $ toInt d) -- negative integer
+           ||| do char '.'
+                  f <- many1 digit
+                  char ')'
+                  return (Val $ NumVal $ Float $ negate $ read $ d <> "." <> f) -- negative float
+           ||| do d <- many1 digit
+                  do char '.'
+                     f <- many1 digit
+                     return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float
+                   ||| return (Val $ NumVal $ Int $ toInt d) -- positive integer
+
 pTerm :: Parser Expr
 pTerm = do f <- pFactor
-           space 
+           space
            do symbol "*"
               Mul f <$> pTerm
             ||| do symbol "/"
