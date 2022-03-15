@@ -23,7 +23,7 @@ data Expr = Add Expr Expr
           | ToInt Expr
           | ToString Expr
           | Concat Expr Expr
-          | Val Numeric
+          | Val Value
           | Get Name
   deriving Show
 
@@ -37,7 +37,7 @@ eval :: [(Name, Value)] -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
         Maybe Value -- Result (if no errors such as missing variables)
 eval vars (Get x) = lookup x vars
-eval vars (Val x) = Just $ NumVal x -- for values, just give the value directly
+eval vars (Val x) = Just x -- for values, just give the value directly
 eval vars (Add x y) = numOp vars (+) x y
 eval vars (Sub x y) = numOp vars (-) x y
 eval vars (Mul x y) = numOp vars (*) x y
@@ -64,10 +64,10 @@ digitToInt :: Char -> Int
 digitToInt x = fromEnum x - fromEnum '0'
 
 pCommand :: Parser Command
-pCommand = do t <- letter
+pCommand = do t <- many1 letter
               space
               symbol "="
-              Set [t] <$> pExpr
+              Set t <$> pExpr
             ||| do symbol "print"
                    space
                    Print <$> pExpr
@@ -89,20 +89,24 @@ pExpr = do t <- pTerm
 
 pFactor :: Parser Expr
 pFactor = do string "(-"
-             d <- many digit
+             d <- many1 digit
              do char ')'
-                return (Val $ Int $ negate $ toInt d) -- negative integer
+                return (Val $ NumVal $ Int $ negate $ toInt d) -- negative integer
               ||| do char '.'
-                     f <- many digit
+                     f <- many1 digit
                      char ')'
-                     return (Val $ Float $ negate $ read $ d <> "." <> f) -- negative float
-           ||| do d <- many digit
+                     return (Val $ NumVal $ Float $ negate $ read $ d <> "." <> f) -- negative float
+           ||| do d <- many1 digit
                   do char '.'
-                     f <- many digit
-                     return (Val $ Float $ read $ d <> "." <> f) -- positive float
-                   ||| return (Val $ Int $ toInt d) -- positive integer
-           ||| do v <- many letter
+                     f <- many1 digit
+                     return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float
+                   ||| return (Val $ NumVal $ Int $ toInt d) -- positive integer
+           ||| do v <- many1 letter
                   return $ Get v -- variable
+           ||| do char '\"'
+                  v <- many1 letter
+                  char '\"'
+                  return (Val $ StrVal v) -- variable
            ||| do char '('
                   space
                   e <- pExpr
