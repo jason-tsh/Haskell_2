@@ -33,6 +33,13 @@ process st (Print e)
                     Nothing -> putStrLn "No entry found"
           -- Print the result of evaluation
           repl st
+process st (Repeat acc cmd)
+     = do if acc > 0 then putStrLn "--Repeat loop exits--"
+                     else case cmd of
+                          [] -> process st (Repeat (acc-1) cmd)
+                          (x:xs) -> do process st x
+                                       process st (Repeat acc xs)
+          repl st
 process st Quit = return ()
 
 -- Read, Eval, Print Loop
