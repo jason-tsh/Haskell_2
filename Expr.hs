@@ -20,7 +20,7 @@ data Expr = Add Expr Expr
           | Sub Expr Expr
           | Mul Expr Expr
           | Div Expr Expr
-          | ToInt Expr
+          | ToNum Expr
           | ToString Expr
           | Concat Expr Expr
           | Val Value
@@ -43,7 +43,9 @@ eval vars (Add x y) = numOp vars (+) x y
 eval vars (Sub x y) = numOp vars (-) x y
 eval vars (Mul x y) = numOp vars (*) x y
 eval vars (Div x y) = numOp vars quot x y
-eval vars (ToInt x) = Just $ NumVal $ Int $ toInt $ show x
+eval vars (ToNum x) = case x of
+                        (Val e) -> Just e
+                        _ -> Nothing
 eval vars (ToString x) = Just $ StrVal $ show x
 eval vars (Concat x y) = Just $ StrVal $ go x ++ go y
                           where go x = maybe "**Error**" show (eval vars x)
@@ -52,9 +54,7 @@ eval vars (If cond x y) = case eval vars cond of
                                                  Int int -> if int /= 0
                                                             then eval vars x
                                                             else eval vars y
-                                                 Float float -> if float /= 0.0
-                                                            then eval vars x
-                                                            else eval vars y
+                                                 _ -> Nothing
                             _ -> Nothing
 
 numOp :: [(Name, Value)] -> (Int -> Int -> Int) -> Expr -> Expr -> Maybe Value
@@ -80,8 +80,8 @@ pCommand = do t <- many1 letter
               Set t <$> pExpr
             ||| do symbol "print"
                    Print <$> pExpr
-                 ||| do symbol "quit"
-                        return Quit
+            ||| do symbol "quit"
+                   return Quit
 
 pExpr :: Parser Expr
 pExpr = do t <- pTerm
@@ -97,14 +97,17 @@ pExpr = do t <- pTerm
                 n <- pNum
                 char '\"'
                 symbol ")"
-                return $ ToInt n
+                return $ ToNum n
+         ||| do symbol "toString("
+                n <- pExpr
+                symbol ")"
+                return $ ToString n
          ||| do symbol "if"
                 cond <- pExpr
                 symbol "then"
                 true <- pExpr
                 symbol "else"
-                false <- pExpr
-                If cond true <$> pExpr       
+                If cond true <$> pExpr
 
 pFactor :: Parser Expr
 pFactor = do pNum
@@ -128,11 +131,11 @@ pNum = do string "(-"
                   f <- many1 digit
                   char ')'
                   return (Val $ NumVal $ Float $ negate $ read $ d <> "." <> f) -- negative float
-         ||| do d <- many1 digit
-                do char '.'
-                   f <- many1 digit
-                   return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float
-                 ||| return (Val $ NumVal $ Int $ toInt d) -- positive integer
+        ||| do d <- many1 digit
+               do char '.'
+                  f <- many1 digit
+                  return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float
+                ||| return (Val $ NumVal $ Int $ toInt d) -- positive integer
 
 pTerm :: Parser Expr
 pTerm = do f <- pFactor
@@ -140,4 +143,4 @@ pTerm = do f <- pFactor
               Mul f <$> pTerm
             ||| do symbol "/"
                    Div f <$> pTerm
-                 ||| return f
+            ||| return f
