@@ -33,6 +33,15 @@ process st (Print e)
                     Nothing -> putStrLn "No entry found"
           -- Print the result of evaluation
           repl st
+process st (Cond cond x y)
+     = do case eval list cond of
+            Just (NumVal val) -> case val of
+                                   Int int -> if int /= 0 then process st x
+                                                          else process st y
+                                   _ -> putStrLn "No entry found"
+            _ -> putStrLn "No entry found"
+          repl st
+          where list = vars st
 process st (Repeat acc cmd)
      = do if acc > 0 then putStrLn "--Repeat loop exits--"
                      else case cmd of

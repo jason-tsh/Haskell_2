@@ -34,6 +34,7 @@ data Expr = Add Expr Expr
 -- These are the REPL commands
 data Command = Set Name Expr -- assign an expression to a variable name
              | Print Expr    -- evaluate an expression and print the result
+             | Cond Expr Command Command
              | Repeat Int [Command]
              | Quit
   deriving Show
@@ -92,6 +93,12 @@ pCommand = do t <- many1 letter
               Set t <$> pExpr
             ||| do symbol "print"
                    Print <$> pExpr
+            ||| do symbol "if"
+                   cond <- pExpr
+                   symbol "then"
+                   true <- pCommand
+                   symbol "else"
+                   Cond cond true <$> pCommand
             ||| do symbol "repeat"
                    acc <- many1 digit
                    symbol "{"
