@@ -19,40 +19,45 @@ updateVars name val vars = (name, val) : filter (\var -> fst var /= name) vars
 dropVar :: Name -> [(Name, Value)] -> [(Name, Value)]
 dropVar name = filter (\var -> fst var /= name)
 
-process :: LState -> Command -> IO ()
-process st (Set var e)
-     = do print (Set var e)
+process :: LState -> Command -> Bool -> IO ()
+process st (Set var e) subr
+     = do print (eval list e)
           let st' = case eval list e of
                     Just val -> st {vars = updateVars var val list}
                     Nothing -> st
           -- st' should include the variable set to the result of evaluating e
           if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
                                      else putStr ""
-          repl st'
+          if subr then return () else repl st'
           where list = vars st
-process st (Print e)
-     = do case eval (vars st) e of
+process st (Print e) subr
+     = do print (Print e)
+          case eval (vars st) e of
                     Just val -> print val
                     Nothing -> putStrLn "No entry found"
           -- Print the result of evaluation
-          repl st
-process st (Cond cond x y)
-     = do case eval list cond of
+          if subr then return () else repl st
+process st (Cond cond x y) subr
+     = do print (Cond cond x y)
+          case eval list cond of
             Just (NumVal val) -> case val of
-                                   Int int -> if int /= 0 then process st x
-                                                          else process st y
+                                   Int int -> if int /= 0 then process st x subr
+                                                          else process st y subr
                                    _ -> putStrLn "No entry found"
             _ -> putStrLn "No entry found"
-          repl st
+          if subr then return () else repl st
           where list = vars st
-process st (Repeat acc cmd)
-     = do if acc > 0 then putStrLn "--Repeat loop exits--"
-                     else case cmd of
-                          [] -> process st (Repeat (acc-1) cmd)
-                          (x:xs) -> do process st x
-                                       process st (Repeat acc xs)
-          repl st
-process st Quit = return ()
+process st (Repeat acc cmd) subr
+     = do print (Repeat acc cmd)
+          if acc > 0 then case cmd of
+                          (x:xs) -> do process st x True 
+                                       process st (Repeat acc xs) True 
+                          [] -> return ()
+                     else putStrLn "--Repeat loop exits--"
+          if acc > 0 && not subr then process st (Repeat (acc-1) cmd) False
+                                 else if acc <= 0 && not subr then repl st
+                                                              else return ()
+process st Quit subr = return ()
 
 -- Read, Eval, Print Loop
 -- This reads and parses the input using the pCommand parser, and calls
@@ -64,6 +69,6 @@ repl st = do putStr "> "
              inp <- getLine
              case parse pCommand inp of
                     [(cmd, "")] -> -- Must parse entire input
-                                   process st cmd
+                                   process st cmd False
                     _ -> do putStrLn "Parse error"
                             repl st

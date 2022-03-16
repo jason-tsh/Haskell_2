@@ -103,6 +103,7 @@ pCommand = do t <- many1 letter
                    acc <- many1 digit
                    symbol "{"
                    cmd <- many (many (symbol ";") *> pCommand)
+                   symbol "}"
                    return $ Repeat (toInt acc) cmd
             ||| do symbol "quit"
                    return Quit
