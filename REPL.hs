@@ -2,6 +2,7 @@ module REPL where
 
 import Expr
 import Parsing
+import Data.Maybe
 
 data LState = LState { vars :: [(Name, Value)] }
 
@@ -24,9 +25,11 @@ process st (Set var e)
           let st' = case eval list e of
                     Just val -> st {vars = updateVars var val list}
                     Nothing -> st
-                    where list = vars st
           -- st' should include the variable set to the result of evaluating e
+          if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
+                                     else putStr ""
           repl st'
+          where list = vars st
 process st (Print e)
      = do case eval (vars st) e of
                     Just val -> print val
