@@ -153,7 +153,7 @@ pFactor = do pNum
                   return e --- expression with priority
 
 pNum :: Parser Expr
-pNum = pInt ||| pFloat
+pNum = pFloat ||| pInt
 
 pInt :: Parser Expr
 pInt = do symbol "(-"
@@ -172,11 +172,11 @@ pFloat = do symbol "(-"
             f <- many1 digit
             symbol ")"
             return (Val $ NumVal $ Float $ negate $ read $ d <> "." <> f) -- negative float
-        ||| do d <- many1 digit
-               char '.'
-               f <- many1 digit
-               space
-               return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float
+          ||| do d <- many1 digit
+                 char '.'
+                 f <- many1 digit
+                 space
+                 return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float
 
 pTerm :: Parser Expr
 pTerm = do f <- pFactor
