@@ -41,10 +41,10 @@ process st (Cond cond x y) subr
      = do print (Cond cond x y)
           case eval list cond of
             Just (NumVal val) -> case val of
-                                   Int int -> if int /= 0 then process st x subr
-                                                          else process st y subr
-                                   _ -> putStrLn "No entry found"
-            _ -> putStrLn "No entry found"
+                                   Int int -> if int /= 0 then process st x True 
+                                                          else process st y True 
+                                   _ -> putStrLn "Non-deterministic condition, action aborted"
+            _ -> putStrLn "Non-deterministic condition, action aborted"
           if subr then return () else repl st
           where list = vars st
 process st (Repeat acc cmd) subr
@@ -57,6 +57,18 @@ process st (Repeat acc cmd) subr
           if acc > 0 && not subr then process st (Repeat (acc-1) cmd) False
                                  else if acc <= 0 && not subr then repl st
                                                               else return ()
+process st (While cond cmd) subr
+     = do print (While cond cmd)
+          process st (Cond cond (Repeat 1 cmd) (Print $ Val $ StrVal "--While loop exits--")) True
+          process st (While cond cmd) True
+          if subr then return () else repl st
+process st (DoWhile cond cmd) subr
+     = do print (DoWhile cond cmd)
+          process st (Repeat 1 cmd) True -- Do part
+          process st (While cond cmd) True -- While part
+          if subr then return () else repl st
+process st (For init cond delta cmd) subr
+     = do undefined 
 process st Quit subr = return ()
 
 -- Read, Eval, Print Loop
