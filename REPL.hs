@@ -22,14 +22,18 @@ dropVar name = filter (\var -> fst var /= name)
 process :: LState -> Command -> Bool -> IO ()
 process st (Set var e) subr
      = do print (eval list e)
-          let st' = case eval list e of
-                    Just val -> st {vars = updateVars var val list}
-                    Nothing -> st
-          -- st' should include the variable set to the result of evaluating e
-          if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
-                                     else putStr ""
-          if subr then return () else repl st'
-          where list = vars st
+          if (e == (StrVal "print")) then do inp <- getLine -- get input
+                                             case parse pExpr inp of -- try to parse the inputted expression
+                                                  [(inputexpr,"")] -> process st (Set var inputexpr) subr -- if it worked, set the variable to that expression
+                                                  [] -> purStrLn "Input invalid" -- otherwise error
+                                     else let st' = case eval list e of
+                                             Just val -> st {vars = updateVars var val list}
+                                             Nothing -> st
+                                        -- st' should include the variable set to the result of evaluating e
+                                        if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
+                                             else putStr ""
+                                        if subr then return () else repl st'
+                                        where list = vars st
 process st (Print e) subr
      = do print (Print e)
           case eval (vars st) e of
