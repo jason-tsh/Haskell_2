@@ -19,76 +19,69 @@ updateVars name val vars = (name, val) : filter (\var -> fst var /= name) vars
 dropVar :: Name -> [(Name, Value)] -> [(Name, Value)]
 dropVar name = filter (\var -> fst var /= name)
 
-readinput :: LState -> Name -> Bool -> IO ()
-readinput st var subr = do
-     inp <- getLine
-     case parse pExpr inp of
-          [(expr,"")] -> putStrLn("read input")--process st (Set var expr) subr
-          _ -> do
-               putStrLn("didnt read input")
-               repl st
-
-process :: LState -> Command -> Bool -> IO ()
+process :: LState -> Command -> Bool -> IO LState
 process st (Set var e) subr = do
      print (eval list e)
      case e of
-          Val (StrVal x) -> readinput st var subr
-          _ -> do 
-                    let st' = case eval list e of
-                         Just val -> st {vars = updateVars var val list}
-                         Nothing -> st
+          Val (StrVal "input") -> do inp <- getLine
+                                     case parse pExpr inp of
+                                        [(e',"")] -> do let st' = go e'
+                                                        if subr then return st' else repl st'
+                                        _ -> do putStrLn "Invalid input, action aborted"
+                                                if subr then return st else repl st
+          _ -> do let st' = go e
                     -- st' should include the variable set to the result of evaluating e
-                    if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
+                  if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
                                              else putStr ""
-                    if subr then return () else repl st'
+                  if subr then return st' else repl st'
      where list = vars st
+           go e = case eval list e of
+                       Just val -> st {vars = updateVars var val list}
+                       Nothing -> st
 process st (Print e) subr
      = do print (Print e)
           case eval (vars st) e of
                     Just val -> print val
                     Nothing -> putStrLn "No entry found"
           -- Print the result of evaluation
-          if subr then return () else repl st
+          if subr then return st else repl st
 process st (Cond cond x y) subr
      = do print (Cond cond x y)
           case eval list cond of
-            Just (NumVal val) -> case val of
-                                   Int int -> if int /= 0 then process st x True 
-                                                          else process st y True 
-                                   _ -> putStrLn "Non-deterministic condition, action aborted"
-            _ -> putStrLn "Non-deterministic condition, action aborted"
-          if subr then return () else repl st
+            Just (NumVal (Int int)) -> if int /= 0 then process st x True
+                                                   else process st y True
+            _ -> do putStrLn "Non-deterministic condition, action aborted"
+                    if subr then return st else repl st
           where list = vars st
 process st (Repeat acc cmd) subr
      = do print (Repeat acc cmd)
-          if acc > 0 then case cmd of
-                          (x:xs) -> do process st x True 
-                                       process st (Repeat acc xs) True 
-                          [] -> return ()
-                     else putStrLn "--Repeat loop exits--"
-          if acc > 0 && not subr then process st (Repeat (acc-1) cmd) False
-                                 else if acc <= 0 && not subr then repl st
-                                                              else return ()
+          if acc > 0 && not (null cmd) then do go st cmd
+                                               process st (Repeat (acc-1) cmd) False
+          else do putStrLn "--Repeat loop exits--"
+                  if subr then return st else repl st
+          where go st (x:xs)  = do process st x True
+                                   go st xs
+                go st [] = return st
 process st (While cond cmd) subr
      = do print (While cond cmd)
           process st (Cond cond (Repeat 1 cmd) (Print $ Val $ StrVal "--While loop exits--")) True
           process st (While cond cmd) True
-          if subr then return () else repl st
+          if subr then return st else repl st
 process st (DoWhile cond cmd) subr
      = do print (DoWhile cond cmd)
           process st (Repeat 1 cmd) True -- Do part
           process st (While cond cmd) True -- While part
-          if subr then return () else repl st
+          if subr then return st else repl st
 process st (For init cond delta cmd) subr
-     = do undefined 
-process st Quit subr = return ()
+     = do undefined
+process st Quit subr = return st
 
 -- Read, Eval, Print Loop
 -- This reads and parses the input using the pCommand parser, and calls
 -- 'process' to process the command.
 -- 'process' will call 'repl' when done, so the system loops.
 
-repl :: LState -> IO ()
+repl :: LState -> IO LState
 repl st = do putStr "> "
              inp <- getLine
              case parse pCommand inp of

@@ -145,20 +145,30 @@ pExpr = do symbol "abs"
                  ||| return t
 
 pFactor :: Parser Expr
-pFactor = do pNum
-           ||| do v <- many1 letter
-                  return $ Get v -- variable
-           ||| do char '\"'
-                  v <- many $ sat (/= '\"')
-                  char '\"'
-                  return (Val $ StrVal v) -- string (empty string is possible)
-           ||| do symbol "("
-                  e <- pExpr
-                  symbol ")"
-                  return e --- expression with priority
+pFactor = do pNum ||| pVar ||| pStr ||| pUrgent 
 
 pNum :: Parser Expr
 pNum = pFloat ||| pInt
+
+pVar :: Parser Expr
+pVar = do symbol "input"
+          return (Val $ StrVal "input") -- input keyword for user input
+        ||| do v <- many1 letter
+               space
+               return $ Get v -- variable
+
+pStr :: Parser Expr
+pStr = do char '\"'
+          v <- many $ sat (/= '\"')
+          char '\"'
+          space
+          return (Val $ StrVal v) -- string (empty string is possible)
+
+pUrgent :: Parser Expr
+pUrgent = do symbol "("
+             e <- pExpr
+             symbol ")"
+             return e --- expression with priority
 
 pInt :: Parser Expr
 pInt = do symbol "(-"
