@@ -97,20 +97,23 @@ pCommand = do t <- many1 letter
               Set t <$> pExpr
             ||| do symbol "print"
                    Print <$> pExpr
-            ||| do symbol "if"
-                   cond <- pExpr
-                   symbol "then"
-                   true <- pCommand
-                   symbol "else"
-                   Cond cond true <$> pCommand
-            ||| do symbol "repeat"
-                   acc <- many1 digit
-                   symbol "{"
-                   cmd <- many (many (symbol ";") *> pCommand)
-                   symbol "}"
-                   return $ Repeat (toInt acc) cmd
             ||| do symbol "quit"
                    return Quit
+            ||| pCond
+
+pCond :: Parser Command
+pCond = do symbol "if"
+           cond <- pExpr
+           symbol "then"
+           true <- pCommand
+           symbol "else"
+           Cond cond true <$> pCommand
+         ||| do symbol "repeat"
+                acc <- many1 digit
+                symbol "{"
+                cmd <- many (many (symbol ";") *> pCommand)
+                symbol "}"
+                return $ Repeat (toInt acc) cmd
 
 pExpr :: Parser Expr
 pExpr = do symbol "abs"
