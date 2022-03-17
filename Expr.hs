@@ -10,7 +10,7 @@ instance Show Value where
   show (NumVal (Int val)) = show val
   show (NumVal (Float val)) = show val
   show (StrVal val) = show val
-  show (Input) = "<INPUT>"
+  show Input = "<INPUT>"
 
 data Numeric = Int Int | Float Double
   deriving Show
@@ -55,12 +55,14 @@ eval vars (Div x y) = numOp2 vars quot x y
 eval vars (Abs x) = numOp vars abs x
 eval vars (Mod x y) = numOp2 vars mod x y
 eval vars (Pow x y) = numOp2 vars (^) x y
-eval vars (ToNum x) = case x of -- the main thing should be variable casting (WIP)
-                        (Val e) -> Just e
-                        _ -> Nothing
-eval vars (ToString x) = Just $ StrVal $ show x
-eval vars (Concat x y) = Just $ StrVal $ go x ++ go y
-                          where go x = maybe "**Error**" show (eval vars x)
+eval vars (ToNum x) = case x of
+                        Get var -> case lookup var vars of
+                                     Just (StrVal val) -> Just $ NumVal $ Int $ toInt val
+                                     _ -> Nothing -- the main thing should be variable casting (WIP)
+                        _ -> eval vars x
+eval vars (ToString x) = Just $ StrVal $ format $ maybe "*Invalid expression*" show (eval vars x)
+eval vars (Concat x y) = Just $ StrVal $ format (go x) ++ format (go y)
+                          where go x = maybe "*Invalid expression*" show (eval vars x)
 eval vars (If cond x y) = case eval vars cond of
                           Just (NumVal val) -> case val of
                                                Int int -> if int /= 0
@@ -68,6 +70,14 @@ eval vars (If cond x y) = case eval vars cond of
                                                           else eval vars y
                                                _ -> Nothing
                           _ -> Nothing
+
+format :: String -> String --https://stackoverflow.com/questions/3740621/removing-string-double-quotes-in-haskell
+format s@[c]                     = s
+format ('"':s)  | last s == '"'  = init s
+                | otherwise      = s
+format ('\'':s) | last s == '\'' = init s
+                | otherwise      = s
+format s                         = s
 
 numOp :: [(Name, Value)] -> (Int -> Int) -> Expr -> Maybe Value
 numOp vars f x = case eval vars x of
@@ -144,10 +154,14 @@ pBody = do symbol "{"
 pExpr :: Parser Expr
 pExpr = do symbol "abs"
            Abs <$> pNum -- haskell syntax
-         ||| do symbol "toInt(" *> char '\"'
-                n <- pNum
-                char '\"' *> symbol ")"
-                return $ ToNum n
+         ||| do symbol "toInt("
+                do char '\"'
+                   n <- pNum
+                   char '\"' *> symbol ")"
+                   return $ ToNum n
+                 ||| do v <- many1 letter
+                        symbol ")"
+                        return $ ToNum $ Get v -- variable
          ||| do symbol "toString("
                 n <- pExpr
                 symbol ")"
@@ -223,7 +237,7 @@ pFloat = do symbol "(-"
 pTerm :: Parser Expr
 pTerm = do f <- pFactor
            do symbol "*"
-              Mul f <$> pTerm
+              Mul f <$> pExpr
             ||| do symbol "/"
-                   Div f <$> pTerm
+                   Div f <$> pExpr
             ||| return f
