@@ -19,21 +19,29 @@ updateVars name val vars = (name, val) : filter (\var -> fst var /= name) vars
 dropVar :: Name -> [(Name, Value)] -> [(Name, Value)]
 dropVar name = filter (\var -> fst var /= name)
 
+readinput :: LState -> Name -> Bool -> IO ()
+readinput st var subr = do
+     inp <- getLine
+     case parse pExpr inp of
+          [(expr,"")] -> putStrLn("read input")--process st (Set var expr) subr
+          _ -> do
+               putStrLn("didnt read input")
+               repl st
+
 process :: LState -> Command -> Bool -> IO ()
-process st (Set var e) subr
-     = do print (eval list e)
-          if (e == (StrVal "print")) then do inp <- getLine -- get input
-                                             case parse pExpr inp of -- try to parse the inputted expression
-                                                  [(inputexpr,"")] -> process st (Set var inputexpr) subr -- if it worked, set the variable to that expression
-                                                  [] -> purStrLn "Input invalid" -- otherwise error
-                                     else let st' = case eval list e of
-                                             Just val -> st {vars = updateVars var val list}
-                                             Nothing -> st
-                                        -- st' should include the variable set to the result of evaluating e
-                                        if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
+process st (Set var e) subr = do
+     print (eval list e)
+     case e of
+          Val (StrVal x) -> readinput st var subr
+          _ -> do 
+                    let st' = case eval list e of
+                         Just val -> st {vars = updateVars var val list}
+                         Nothing -> st
+                    -- st' should include the variable set to the result of evaluating e
+                    if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
                                              else putStr ""
-                                        if subr then return () else repl st'
-                                        where list = vars st
+                    if subr then return () else repl st'
+     where list = vars st
 process st (Print e) subr
      = do print (Print e)
           case eval (vars st) e of

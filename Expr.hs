@@ -4,12 +4,13 @@ import Parsing
 
 type Name = String
 
-data Value = NumVal Numeric | StrVal String
+data Value = NumVal Numeric | StrVal String | Input
 
 instance Show Value where
   show (NumVal (Int val)) = show val
   show (NumVal (Float val)) = show val
   show (StrVal val) = show val
+  show (Input) = "<INPUT>"
 
 data Numeric = Int Int | Float Double
   deriving Show
