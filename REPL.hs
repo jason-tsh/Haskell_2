@@ -48,30 +48,31 @@ process st (Print e) subr
 process st (Cond cond x y) subr
      = do print (Cond cond x y)
           case eval list cond of
-            Just (NumVal (Int int)) -> if int /= 0 then process st x True
-                                                   else process st y True
+            Just (NumVal (Int int)) -> do st' <- if int /= 0 then process st x True
+                                                             else process st y True
+                                          if subr then return st' else repl st
             _ -> do putStrLn "Non-deterministic condition, action aborted"
                     if subr then return st else repl st
           where list = vars st
 process st (Repeat acc cmd) subr
      = do print (Repeat acc cmd)
-          if acc > 0 && not (null cmd) then do go st cmd
-                                               process st (Repeat (acc-1) cmd) False
+          if acc > 0 && not (null cmd) then do st' <- go st cmd
+                                               process st' (Repeat (acc-1) cmd) False
           else do putStrLn "--Repeat loop exits--"
                   if subr then return st else repl st
-          where go st (x:xs)  = do process st x True
-                                   go st xs
+          where go st (x:xs)  = do st' <- process st x True
+                                   go st' xs
                 go st [] = return st
 process st (While cond cmd) subr
      = do print (While cond cmd)
-          process st (Cond cond (Repeat 1 cmd) (Print $ Val $ StrVal "--While loop exits--")) True
-          process st (While cond cmd) True
-          if subr then return st else repl st
+          st' <- process st (Cond cond (Repeat 1 cmd) (Print $ Val $ StrVal "--While loop exits--")) True
+          st'' <- process st' (While cond cmd) True
+          if subr then return st'' else repl st''
 process st (DoWhile cond cmd) subr
      = do print (DoWhile cond cmd)
-          process st (Repeat 1 cmd) True -- Do part
-          process st (While cond cmd) True -- While part
-          if subr then return st else repl st
+          st' <- process st (Repeat 1 cmd) True -- Do part
+          st'' <- process st' (While cond cmd) True -- While part
+          if subr then return st'' else repl st''
 process st (For init cond delta cmd) subr
      = do undefined
 process st Quit subr = return st
