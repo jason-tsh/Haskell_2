@@ -25,19 +25,18 @@ process st (Set var e) subr = do
      case e of
           Val (StrVal "input") -> do inp <- getLine
                                      case parse pExpr inp of
-                                        [(e',"")] -> do let st' = go e'
-                                                        if subr then return st' else repl st'
+                                        [(e',"")] -> exit $ go e'
                                         _ -> do putStrLn "Invalid input, action aborted"
-                                                if subr then return st else repl st
-          _ -> do let st' = go e
-                    -- st' should include the variable set to the result of evaluating e
+                                                exit st
+          _ -> do -- st' should include the variable set to the result of evaluating e
                   if isNothing (eval list e) then putStrLn "Referred data not found, action aborted"
                                              else putStr ""
-                  if subr then return st' else repl st'
+                  exit $ go e
      where list = vars st
            go e = case eval list e of
                        Just val -> st {vars = updateVars var val list}
                        Nothing -> st
+           exit st = if subr then return st else repl st
 process st (Print e) subr
      = do print (Print e)
           case eval (vars st) e of
@@ -57,24 +56,44 @@ process st (Cond cond x y) subr
 process st (Repeat acc cmd) subr
      = do print (Repeat acc cmd)
           if acc > 0 && not (null cmd) then do st' <- go st cmd
-                                               process st' (Repeat (acc-1) cmd) False
-          else do putStrLn "--Repeat loop exits--"
+                                               process st' (Repeat (acc-1) cmd) subr
+          else do putStrLn "--Repeat loop exits--" --debug
                   if subr then return st else repl st
           where go st (x:xs)  = do st' <- process st x True
                                    go st' xs
                 go st [] = return st
 process st (While cond cmd) subr
      = do print (While cond cmd)
-          st' <- process st (Cond cond (Repeat 1 cmd) (Print $ Val $ StrVal "--While loop exits--")) True
-          st'' <- process st' (While cond cmd) True
+          st' <- process st (Cond cond (Repeat 1 cmd) (Print $ str "--While loop exits--")) True --debug
+          st'' <- if bool then process st' (While cond cmd) True else return st'
           if subr then return st'' else repl st''
+          where bool = case eval list (If cond (int 1) (int 0)) of
+                         Just (NumVal (Int 1)) -> True
+                         _ -> False 
+                list = vars st
+                str val = Val $ StrVal val
+                int val = Val $ NumVal $ Int val
 process st (DoWhile cond cmd) subr
      = do print (DoWhile cond cmd)
           st' <- process st (Repeat 1 cmd) True -- Do part
           st'' <- process st' (While cond cmd) True -- While part
           if subr then return st'' else repl st''
-process st (For init cond delta cmd) subr
-     = do undefined
+process st (For init cond after cmd) subr
+     = do print (For init cond after cmd)
+          st' <- if subr then return st else go st init
+          st'' <- if bool then process st' (Repeat 1 cmd) True else return st'
+          st''' <- if bool then go st'' after else return st''
+          st'''' <- if bool then process st''' (For init cond after cmd) True else return st'''
+          if subr then return st'''' else repl st''
+          where go st (x:xs)  = do st' <- process st x True
+                                   go st' xs
+                go st [] = return st
+                bool = case eval list (If cond (int 1) (int 0)) of
+                         Just (NumVal (Int 1)) -> True
+                         _ -> False 
+                list = vars st
+                str val = Val $ StrVal val
+                int val = Val $ NumVal $ Int val
 process st Quit subr = return st
 
 -- Read, Eval, Print Loop

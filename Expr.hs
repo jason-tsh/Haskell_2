@@ -39,7 +39,7 @@ data Command = Set Name Expr -- assign an expression to a variable name
              | Repeat Int [Command]
              | While Expr [Command]
              | DoWhile Expr [Command]
-             | For Expr Expr Expr [Command]
+             | For [Command] Expr [Command] [Command]
              | Quit
   deriving Show
 
@@ -92,14 +92,16 @@ digitToInt :: Char -> Int
 digitToInt x = fromEnum x - fromEnum '0'
 
 pCommand :: Parser Command
-pCommand = do t <- many1 letter
-              symbol "="
-              Set t <$> pExpr
+pCommand = pSet ||| pCond
             ||| do symbol "print"
                    Print <$> pExpr
             ||| do symbol "quit"
                    return Quit
-            ||| pCond
+
+pSet :: Parser Command
+pSet = do t <- many1 letter
+          symbol "="
+          Set t <$> pExpr
 
 pCond :: Parser Command
 pCond = do symbol "if"
@@ -110,19 +112,41 @@ pCond = do symbol "if"
            Cond cond true <$> pCommand
          ||| do symbol "repeat"
                 acc <- many1 digit
-                symbol "{"
-                cmd <- many (many (symbol ";") *> pCommand)
-                symbol "}"
-                return $ Repeat (toInt acc) cmd
+                Repeat (toInt acc) <$> pBody
+         ||| do symbol "while"
+                cond <- pExpr
+                While cond <$> pBody
+         ||| do symbol "do"
+                cmd <- pBody
+                symbol "while" *> symbol "("
+                cond <- pExpr
+                symbol ")"
+                return $ DoWhile cond cmd
+         ||| do symbol "for"
+                init <- pHead pSet <* symbol ";"
+                cond <- pExpr <* symbol ";"
+                after <- pHead pSet
+                For init cond after <$> pBody
+
+pHead :: Parser a -> Parser [a]
+pHead p = do fst <- p
+             rest <- many (symbol "," *> p)
+             return (fst:rest)
+           ||| return []
+
+pBody :: Parser [Command]
+pBody = do symbol "{"
+           fst <- pCommand
+           rest <- many (symbol ";" *> pCommand)
+           symbol "}"
+           return (fst:rest)
 
 pExpr :: Parser Expr
 pExpr = do symbol "abs"
            Abs <$> pNum -- haskell syntax
-         ||| do symbol "toInt("
-                char '\"'
-                n <- pInt
-                char '\"'
-                symbol ")"
+         ||| do symbol "toInt(" *> char '\"'
+                n <- pNum
+                char '\"' *> symbol ")"
                 return $ ToNum n
          ||| do symbol "toString("
                 n <- pExpr
@@ -148,7 +172,7 @@ pExpr = do symbol "abs"
                  ||| return t
 
 pFactor :: Parser Expr
-pFactor = do pNum ||| pVar ||| pStr ||| pUrgent 
+pFactor = pNum ||| pVar ||| pStr ||| pUrgent
 
 pNum :: Parser Expr
 pNum = pFloat ||| pInt
