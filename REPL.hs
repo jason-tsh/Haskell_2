@@ -81,18 +81,16 @@ process st (DoWhile cond cmd) subr
 process st (For init cond after cmd) subr
      = do print (For init cond after cmd)
           st' <- if subr then return st else go st init
-          st'' <- if bool then process st' (Repeat 1 cmd) True else return st'
-          st''' <- if bool then go st'' after else return st''
-          st'''' <- if bool then process st''' (For init cond after cmd) True else return st'''
-          if subr then return st'''' else repl st''
+          st'' <- if bool st' then process st' (Repeat 1 cmd) True else return st'
+          st' <- if bool st'' then go st'' after else return st''
+          st'' <- if bool st' then process st' (For init cond after cmd) True else return st'
+          if subr then return st'' else repl st''
           where go st (x:xs)  = do st' <- process st x True
                                    go st' xs
                 go st [] = return st
-                bool = case eval list (If cond (int 1) (int 0)) of
+                bool st = case eval (vars st) (If cond (int 1) (int 0)) of
                          Just (NumVal (Int 1)) -> True
                          _ -> False 
-                list = vars st
-                str val = Val $ StrVal val
                 int val = Val $ NumVal $ Int val
 process st Quit subr = return st
 
