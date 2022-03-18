@@ -6,6 +6,8 @@ import Data.Maybe
 import System.Console.Haskeline
 import Data.List (isPrefixOf)
 import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Class
+import Debug.Trace
 
 data LState = LState { vars :: [(Name, Value)] }
 
@@ -39,7 +41,8 @@ process st (Set var e) subr = do
            go e = case eval list e of
                     Just val -> st {vars = updateVars var val list}
                     Nothing -> st
-           exit st = if subr then return st else repl st
+           exit st = do lift $ put st
+                        if subr then return st else repl st
 process st (Print e) subr
      = do outputStrLn $ show (Print e)
           case eval (vars st) e of
@@ -97,13 +100,13 @@ process st (For init cond after cmd) subr
                 int val = Val $ NumVal $ Int val
 process st Quit subr = return st
 
-varList = [] --WIP
-
 commandList = ["input", "print", "if", "then", "else",
                "repeat", "while", "do", "for", "quit"]
 
-search :: String -> [Completion]
-search str = map simpleCompletion $ filter (str `isPrefixOf`) (varList ++ commandList)
+generator :: String -> StateT LState IO [Completion]
+generator str = do st <- get
+                   return $ map simpleCompletion $ filter (str `isPrefixOf`)
+                                                          (map fst (vars st) ++ commandList)
 
 -- Read, Eval, Print Loop
 -- This reads and parses the input using the pCommand parser, and calls
@@ -114,7 +117,6 @@ repl :: LState -> InputT (StateT LState IO) LState
 repl st = do inp <- getInputLine "> "
              case parse pCommand $ fromMaybe "" inp of
                     [(cmd, "")] -> -- Must parse entire input
-                                   do
-                                      process st cmd False
+                                   process st cmd False
                     _ -> do outputStrLn "Parse error"
                             repl st

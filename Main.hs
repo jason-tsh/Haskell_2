@@ -11,10 +11,13 @@ import Control.Monad.Trans.State.Strict
 
 settings :: Settings (StateT LState IO)
 settings = Settings {
-            complete = completeWord Nothing " \t" $ return . search,
+            complete = completeFunc,
             historyFile = Just "hist.txt",
             autoAddHistory = True
             }
+
+completeFunc :: CompletionFunc (StateT LState IO)
+completeFunc = completeWord Nothing " \t" generator
 
 main :: IO ()
 main = do liftIO $ hSetBuffering stdout NoBuffering
