@@ -4,6 +4,7 @@ import Expr
 import Parsing
 import Data.Maybe
 import System.Console.Haskeline
+import Data.List (isPrefixOf)
 
 data LState = LState { vars :: [(Name, Value)] }
 
@@ -35,8 +36,8 @@ process st (Set var e) subr = do
                   exit $ go e
      where list = vars st
            go e = case eval list e of
-                       Just val -> st {vars = updateVars var val list}
-                       Nothing -> st
+                    Just val -> st {vars = updateVars var val list}
+                    Nothing -> st
            exit st = if subr then return st else repl st
 process st (Print e) subr
      = do outputStrLn $ show (Print e)
@@ -94,6 +95,14 @@ process st (For init cond after cmd) subr
                          _ -> False
                 int val = Val $ NumVal $ Int val
 process st Quit subr = return st
+
+varList = [] --WIP
+
+commandList = ["input", "print", "if", "then", "else",
+               "repeat", "while", "do", "for", "quit"]
+
+search :: String -> [Completion]
+search str = map simpleCompletion $ filter (str `isPrefixOf`) (varList ++ commandList)
 
 -- Read, Eval, Print Loop
 -- This reads and parses the input using the pCommand parser, and calls

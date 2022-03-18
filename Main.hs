@@ -8,10 +8,11 @@ import System.IO
 import Control.Monad.IO.Class
 
 settings :: Settings IO
-settings = defaultSettings {
-                            autoAddHistory = True,
-                            historyFile = Just "hist.txt"
-                           }
+settings = Settings {
+            complete = completeWord Nothing " \t" $ return . search,
+            historyFile = Just "hist.txt",
+            autoAddHistory = True
+            }
 
 main :: IO ()
 main = do liftIO $ hSetBuffering stdout NoBuffering
