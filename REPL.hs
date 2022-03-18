@@ -5,6 +5,7 @@ import Parsing
 import Data.Maybe
 import System.Console.Haskeline
 import Data.List (isPrefixOf)
+import Control.Monad.Trans.State.Strict
 
 data LState = LState { vars :: [(Name, Value)] }
 
@@ -21,7 +22,7 @@ updateVars name val vars = (name, val) : filter (\var -> fst var /= name) vars
 dropVar :: Name -> [(Name, Value)] -> [(Name, Value)]
 dropVar name = filter (\var -> fst var /= name)
 
-process :: LState -> Command -> Bool -> InputT IO LState
+process :: LState -> Command -> Bool -> InputT (StateT LState IO) LState
 process st (Set var e) subr = do
      outputStrLn $ show (eval list e)
      case e of
@@ -109,10 +110,11 @@ search str = map simpleCompletion $ filter (str `isPrefixOf`) (varList ++ comman
 -- 'process' to process the command.
 -- 'process' will call 'repl' when done, so the system loops.
 
-repl :: LState -> InputT IO LState
+repl :: LState -> InputT (StateT LState IO) LState
 repl st = do inp <- getInputLine "> "
              case parse pCommand $ fromMaybe "" inp of
                     [(cmd, "")] -> -- Must parse entire input
-                                   process st cmd False
+                                   do
+                                      process st cmd False
                     _ -> do outputStrLn "Parse error"
                             repl st
