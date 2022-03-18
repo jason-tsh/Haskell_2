@@ -21,5 +21,5 @@ completeFunc = completeWord Nothing " \t" generator
 
 main :: IO ()
 main = do liftIO $ hSetBuffering stdout NoBuffering
-          flip evalStateT initLState $ runInputT settings $ repl initLState 
+          flip evalStateT initLState $ runInputT settings repl 
           return () 
