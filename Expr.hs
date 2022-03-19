@@ -1,19 +1,40 @@
 module Expr where
 
 import Parsing
+import GHC.Float (int2Double)
+import GHC.Real (div)
 
 type Name = String
 
-data Value = NumVal Numeric | StrVal String | Input
+data Value = NumVal Numeric | StrVal String
 
 instance Show Value where
   show (NumVal (Int val)) = show val
   show (NumVal (Float val)) = show val
   show (StrVal val) = show val
-  show Input = "<INPUT>"
 
 data Numeric = Int Int | Float Double
   deriving Show
+
+--https://hackage.haskell.org/package/base-4.16.0.0/docs/GHC-Float.html#v:int2Double
+instance Num Numeric where
+       (+) (Int x) (Int y) = Int (x + y)
+       (+) (Int x) (Float y) = Float ((int2Double x) + y)
+       (+) (Float x) (Int y) = Float (x + (int2Double y))
+       (+) (Float x) (Float y) = Float (x + y)
+       (-) (Int x) (Int y) = Int (x - y)
+       (-) (Int x) (Float y) = Float ((int2Double x) - y)
+       (-) (Float x) (Int y) = Float (x - (int2Double y))
+       (-) (Float x) (Float y) = Float (x - y)
+       (*) (Int x) (Int y) = Int (x * y)
+       (*) (Int x) (Float y) = Float ((int2Double x) * y)
+       (*) (Float x) (Int y) = Float (x * (int2Double y))
+       (*) (Float x) (Float y) = Float (x * y)
+       abs (Int x) = Int (abs x)
+       abs (Float x) = Float (abs x)
+       signum (Int x) = Int (signum x)
+       signum (Float x) = Float (signum x)
+       fromInteger x = Int (fromInteger x)
 
 -- At first, 'Expr' contains only addition, conversion to strings, and integer
 -- values. You will need to add other operations, and variables
@@ -51,10 +72,10 @@ eval vars (Val x) = Just x -- for values, just give the value directly
 eval vars (Add x y) = numOp2 vars (+) x y
 eval vars (Sub x y) = numOp2 vars (-) x y
 eval vars (Mul x y) = numOp2 vars (*) x y
-eval vars (Div x y) = numOp2 vars quot x y
+eval vars (Div x y) = numOp2 vars doDivision x y
 eval vars (Abs x) = numOp vars abs x
-eval vars (Mod x y) = numOp2 vars mod x y
-eval vars (Pow x y) = numOp2 vars (^) x y
+eval vars (Mod x y) = numOp2 vars doMod x y
+eval vars (Pow x y) = numOp2 vars doPow x y
 eval vars (ToNum x) = case x of
                         Get var -> case lookup var vars of
                                      Just (StrVal val) -> Just $ NumVal $ Int $ toInt val
@@ -79,17 +100,48 @@ format ('\'':s) | last s == '\'' = init s
                 | otherwise      = s
 format s                         = s
 
-numOp :: [(Name, Value)] -> (Int -> Int) -> Expr -> Maybe Value
-numOp vars f x = case eval vars x of
-                   Just (NumVal (Int xval)) -> Just $ NumVal $ Int (f xval)
-                   _ -> Nothing
+doDivision :: Numeric -> Numeric -> Numeric
+doDivision x y = case x of
+       Int xval -> case y of
+                     Int yval -> Int (quot xval yval)
+                     Float yval -> Float ((int2Double xval) / yval)
+       Float xval -> case y of
+                     Int yval -> Float (xval / (int2Double yval))
+                     Float yval -> Float (xval / yval)
 
-numOp2 :: [(Name, Value)] -> (Int -> Int -> Int) -> Expr -> Expr -> Maybe Value
+doMod :: Numeric -> Numeric -> Numeric
+doMod x y = case x of
+       Int xval -> case y of
+                     Int yval -> Int (mod xval yval)
+                     Float yval -> Float (doubleMod (int2Double xval) yval)
+       Float xval -> case y of
+                     Int yval -> Float (doubleMod xval (int2Double yval))
+                     Float yval -> Float (doubleMod xval yval)
+
+--https://hackage.haskell.org/package/base-4.8.0.0/docs/Prelude.html#v:round
+doubleMod :: Double -> Double -> Double
+doubleMod x y = x - (y * (int2Double $ floor (x / y)))
+
+doPow :: Numeric -> Numeric -> Numeric
+doPow x y = case x of
+       Int xval -> case y of
+              Int yval -> Int (xval ^ yval)
+              Float yval -> Float ((int2Double xval) ** yval)
+       Float xval -> case y of
+              Int yval -> Float (xval ^ yval)
+              Float yval -> Float (xval ** yval)
+
+numOp :: [(Name, Value)] -> (Numeric -> Numeric) -> Expr -> Maybe Value
+numOp vars f x = case eval vars x of
+                     Just (NumVal xval) -> Just $ NumVal (f xval)
+                     _ -> Nothing
+
+numOp2 :: [(Name, Value)] -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
 numOp2 vars f x y = case eval vars x of
-                      Just (NumVal (Int xval)) -> case eval vars y of
-                                     Just (NumVal (Int yval)) -> Just $ NumVal $ Int (f xval yval)
-                                     _ -> Nothing
-                      _ -> Nothing
+                     Just (NumVal xval) -> case eval vars y of
+                            Just (NumVal yval) -> Just $ NumVal (f xval yval)
+                            _ -> Nothing
+                     _ -> Nothing
 
 toInt :: String -> Int
 toInt = go 0
