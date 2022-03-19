@@ -20,7 +20,7 @@ initLState = LState 0 []
 -- that name and value added.
 -- If it already exists, remove the old value
 updateVars :: Name -> Value -> Int -> [(Name, Value, Int)] -> [(Name, Value, Int)]
-updateVars name val scope vars = (name, val, scope) : filter (\var -> fst3 var /= name) vars
+updateVars name val scope vars = (name, val, scope) : dropVar name vars
 
 -- Return a new set of variables with the given name removed
 dropVar :: Name -> [(Name, Value, Int)] -> [(Name, Value, Int)]
@@ -34,18 +34,43 @@ checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
                       Just (NumVal (Int 1)) -> True
                       _ -> False
 
+checkScope :: LState -> [Command] -> Bool
+checkScope st [] = True
+checkScope st (x:xs) = case x of
+                         (Set var e) -> case go var $ vars st of
+                                          Just x -> checkScope st xs
+                                          Nothing -> case eval (vars st) e of
+                                                       Just val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
+                                                       Nothing -> False
+                         (Print e) -> condCheck e $ checkScope st xs
+                         (Cond cond x y) -> condCheck cond $ checkScope st xs
+                         (Repeat acc cmd) -> blockCheck cmd
+                         (While cond cmd) -> condCheck cond $ blockCheck cmd
+                         (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
+                         (For init cond after cmd) -> if null init then condCheck cond $ blockCheck (after ++ cmd)
+                                                                   else checkScope st (init ++ For [] cond after cmd : cmd)
+                                                               
+                         Quit -> checkScope st xs
+                         where go key [] =  Nothing--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+                               go key ((x,y,z):xys)
+                                 | key == x  =  Just (x,y,z)
+                                 | otherwise =  go key xys
+                               blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
+                               condCheck cond check = case eval (vars st) cond of
+                                                        Just val -> check
+                                                        Nothing -> False
+
 batch :: [Command] -> InputT (StateT LState IO) ()
 batch = foldr ((>>) . process) (return ())
 
 process :: Command -> InputT (StateT LState IO) ()
 process (Set var e) = do
      st <- lift get
-     let list = vars st
-     let go e = case eval list e of
-                    Just val -> st {vars = updateVars var val (scope st) list}
+     let go e = case eval (vars st) e of
+                    Just val -> st {vars = updateVars var val (scope st) (vars st)}
                     Nothing -> st
      let exit st = lift $ put st
-     outputStrLn $ show (eval list e)
+     outputStrLn $ show (eval (vars st) e)
      case e of
           Val (StrVal "input") -> do inp <- getInputLine "> "
                                      case parse pExpr $ fromMaybe "" inp of
@@ -53,7 +78,7 @@ process (Set var e) = do
                                         _ -> do outputStrLn "Invalid input, action aborted"
                                                 exit st
           _ -> do -- st' should include the variable set to the result of evaluating e
-                  Control.Monad.when (isNothing (eval list e)) $
+                  Control.Monad.when (isNothing (eval (vars st) e)) $
                                      outputStrLn "Referred data not found, action aborted"
                   exit $ go e
 
@@ -75,15 +100,19 @@ process (Cond cond x y)
 process (Repeat acc cmd)
      = do outputStrLn $ show (Repeat acc cmd)
           st <- lift get
-          if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc-1) cmd)
-                                       else do outputStrLn "--Repeat loop exits--" --debug
-                                               lift $ put st
+          if checkScope st cmd
+          then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc-1) cmd)
+                                            else do outputStrLn "--Repeat loop exits--" --debug
+                                                    lift $ put st
+          else outputStrLn "**Variable not in scope**"
 
 process (While cond cmd)
      = do outputStrLn $ show (While cond cmd)
           process (Cond cond (Repeat 1 cmd) (Print $ strVal "--While loop exits--")) --debug
           st <- lift get
-          Control.Monad.when (checkCond st cond) $ process (While cond cmd)
+          if checkScope st cmd
+          then Control.Monad.when (checkCond st cond) $ process (While cond cmd)
+          else outputStrLn "**Variable not in scope**"
 
 process (DoWhile cond cmd)
      = do outputStrLn $ show (DoWhile cond cmd)
@@ -93,7 +122,9 @@ process (For init cond after cmd)
      = do outputStrLn $ show (For init cond after cmd)
           batch init
           st <- lift get
-          Control.Monad.when (checkCond st cond) $ process (While cond (cmd ++ after))
+          if checkScope st (init ++ Cond cond Quit Quit : after ++ cmd)
+          then Control.Monad.when (checkCond st cond) $ process (While cond (cmd ++ after))
+          else outputStrLn "**Variable not in scope**"
 
 process Quit = lift $ lift exitSuccess
 
