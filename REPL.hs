@@ -5,22 +5,13 @@ import Expr
 import Expr_parsing
 import Parsing
 import Data.Maybe
-import System.Console.Haskeline
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
 import qualified Control.Monad
+import System.Console.Haskeline
 import System.Exit
 
 data LState = LState { scope :: Int, vars :: [(Name, Value, Int)] }
-
-fst3 :: (a, b, c) -> a
-fst3 (a, _, _) = a
-
-snd3 :: (a, b, c) -> b
-snd3 (_, b, _) = b
-
-lst3 :: (a, b, c) -> c
-lst3 (_, _, c) = c
 
 initLState :: LState
 initLState = LState 0 []

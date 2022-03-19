@@ -1,10 +1,11 @@
 module Main where
 
 import REPL
-import System.Console.Haskeline
-import System.IO
-import Control.Monad.Trans.State.Strict
+import Expr
 import Data.List
+import Control.Monad.Trans.State.Strict
+import System.IO
+import System.Console.Haskeline
 
 commandList :: [String]
 commandList = ["input", "print", "if", "then", "else",

@@ -1,7 +1,7 @@
 module Expr where
 
-import Expr_parsing
 import Data_type
+import Expr_parsing
 import GHC.Float (int2Double)
 import GHC.Real (div)
 
@@ -88,3 +88,12 @@ lookup3 _key [] =  Nothing
 lookup3  key ((x,y,_):xys)
     | key == x  =  Just y
     | otherwise =  lookup3 key xys
+
+fst3 :: (a, b, c) -> a
+fst3 (a, _, _) = a
+
+snd3 :: (a, b, c) -> b
+snd3 (_, b, _) = b
+
+lst3 :: (a, b, c) -> c
+lst3 (_, _, c) = c

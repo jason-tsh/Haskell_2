@@ -4,6 +4,7 @@ module Test where
 
 import Test.QuickCheck
 import Expr
+import Expr_parsing
 
 prop_formatDoubleQuotes :: String -> Bool
 prop_formatDoubleQuotes str = str == format formattedString
@@ -16,7 +17,7 @@ prop_formatSingleQuotes str = str == format formattedString
 -- https://stackoverflow.com/questions/12466580/how-to-use-modifiers-with-quickcheck-positive-in-my-case
 -- https://stackoverflow.com/questions/12884927/conditional-quickcheck-properties
 prop_toInt1 :: NonNegative Int -> Bool
-prop_toInt1 (NonNegative x) = x == (toInt (show x))
+prop_toInt1 (NonNegative x) = x == toInt (show x)
 
 
 -- Make sure all tests are above this part
