@@ -62,7 +62,7 @@ process (Print e)
           outputStrLn $ show (Print e)
           case eval (vars st) e of
                     Just val -> outputStrLn $ show val
-                    Nothing -> outputStrLn "No entry found"
+                    Nothing -> outputStrLn "No entry/ valid result found"
           -- Print the result of evaluation
 
 process (Cond cond x y)
