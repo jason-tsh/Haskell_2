@@ -13,7 +13,7 @@ commandList = ["input", "print", "if", "then", "else",
 generator :: String -> StateT LState IO [Completion]
 generator str = do st <- get
                    return $ map simpleCompletion
-                          $ filter (str `isPrefixOf`) (map fst (vars st) ++ commandList)
+                          $ filter (str `isPrefixOf`) (map fst3 (vars st) ++ commandList)
 
 settings :: Settings (StateT LState IO)
 settings = Settings {

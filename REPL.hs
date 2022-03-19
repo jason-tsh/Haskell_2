@@ -11,20 +11,29 @@ import Control.Monad.Trans.Class
 import qualified Control.Monad
 import System.Exit
 
-data LState = LState { vars :: [(Name, Value)] }
+data LState = LState { scope :: Int, vars :: [(Name, Value, Int)] }
+
+fst3 :: (a, b, c) -> a
+fst3 (a, _, _) = a
+
+snd3 :: (a, b, c) -> b
+snd3 (_, b, _) = b
+
+lst3 :: (a, b, c) -> c
+lst3 (_, _, c) = c
 
 initLState :: LState
-initLState = LState []
+initLState = LState 0 []
 
 -- Given a variable name and a value, return a new set of variables with
 -- that name and value added.
 -- If it already exists, remove the old value
-updateVars :: Name -> Value -> [(Name, Value)] -> [(Name, Value)]
-updateVars name val vars = (name, val) : filter (\var -> fst var /= name) vars
+updateVars :: Name -> Value -> Int -> [(Name, Value, Int)] -> [(Name, Value, Int)]
+updateVars name val scope vars = (name, val, scope) : filter (\var -> fst3 var /= name) vars
 
 -- Return a new set of variables with the given name removed
-dropVar :: Name -> [(Name, Value)] -> [(Name, Value)]
-dropVar name = filter (\var -> fst var /= name)
+dropVar :: Name -> [(Name, Value, Int)] -> [(Name, Value, Int)]
+dropVar name = filter (\var -> fst3 var /= name)
 
 strVal val = Val $ StrVal val
 intVal val = Val $ NumVal $ Int val
@@ -42,7 +51,7 @@ process (Set var e) = do
      st <- lift get
      let list = vars st
      let go e = case eval list e of
-                    Just val -> st {vars = updateVars var val list}
+                    Just val -> st {vars = updateVars var val (scope st) list}
                     Nothing -> st
      let exit st = lift $ put st
      outputStrLn $ show (eval list e)

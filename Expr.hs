@@ -5,10 +5,10 @@ import Data_type
 import GHC.Float (int2Double)
 import GHC.Real (div)
 
-eval :: [(Name, Value)] -> -- Variable name to value mapping
+eval :: [(Name, Value, Int)] -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
         Maybe Value -- Result (if no errors such as missing variables)
-eval vars (Get x) = lookup x vars
+eval vars (Get x) = lookup3 x vars
 eval vars (Val x) = Just x -- for values, just give the value directly
 eval vars (Add x y) = numOp2 vars (+) x y
 eval vars (Sub x y) = numOp2 vars (-) x y
@@ -18,7 +18,7 @@ eval vars (Abs x) = numOp vars abs x
 eval vars (Mod x y) = numOp2 vars doMod x y
 eval vars (Pow x y) = numOp2 vars doPow x y
 eval vars (ToNum x) = case x of
-                        Get var -> case lookup var vars of
+                        Get var -> case lookup3 var vars of
                                      Just (StrVal val) -> Just $ NumVal $ Int $ toInt val
                                      _ -> Nothing -- the main thing should be variable casting (WIP)
                         _ -> eval vars x
@@ -33,24 +33,16 @@ eval vars (If cond x y) = case eval vars cond of
                                                _ -> Nothing
                           _ -> Nothing
 
-numOp :: [(Name, Value)] -> (Numeric -> Numeric) -> Expr -> Maybe Value
+numOp :: [(Name, Value, Int)] -> (Numeric -> Numeric) -> Expr -> Maybe Value
 numOp vars f x = case eval vars x of
                      Just (NumVal xval) -> Just $ NumVal (f xval)
                      _ -> Nothing
-numOp2 :: [(Name, Value)] -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
+numOp2 :: [(Name, Value, Int)] -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
 numOp2 vars f x y = case eval vars x of
                      Just (NumVal xval) -> case eval vars y of
                             Just (NumVal yval) -> Just $ NumVal (f xval yval)
                             _ -> Nothing
                      _ -> Nothing
-
-format :: String -> String --https://stackoverflow.com/questions/3740621/removing-string-double-quotes-in-haskell
-format s@[c]                     = s
-format ('"':s)  | last s == '"'  = init s
-                | otherwise      = s
-format ('\'':s) | last s == '\'' = init s
-                | otherwise      = s
-format s                         = s
 
 doDivision :: Numeric -> Numeric -> Numeric
 doDivision x y = case x of
@@ -82,3 +74,17 @@ doPow x y = case x of
        Float xval -> case y of
               Int yval -> Float (xval ^ yval)
               Float yval -> Float (xval ** yval)
+
+format :: String -> String --https://stackoverflow.com/questions/3740621/removing-string-double-quotes-in-haskell
+format s@[c]                     = s
+format ('"':s)  | last s == '"'  = init s
+                | otherwise      = s
+format ('\'':s) | last s == '\'' = init s
+                | otherwise      = s
+format s                         = s
+
+lookup3 :: (Eq a) => a -> [(a,b,c)] -> Maybe b --https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+lookup3 _key [] =  Nothing
+lookup3  key ((x,y,_):xys)
+    | key == x  =  Just y
+    | otherwise =  lookup3 key xys
