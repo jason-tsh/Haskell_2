@@ -1,5 +1,6 @@
 module Expr where
 
+import Expr_parsing
 import Parsing
 import GHC.Float (int2Double)
 import GHC.Real (div)
