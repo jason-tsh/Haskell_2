@@ -1,11 +1,11 @@
 module REPL where
 
+import Data_type
 import Expr
 import Expr_parsing
 import Parsing
 import Data.Maybe
 import System.Console.Haskeline
-import Data.List
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
 import qualified Control.Monad

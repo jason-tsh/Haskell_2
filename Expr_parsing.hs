@@ -1,47 +1,7 @@
 module Expr_parsing where
 
 import Parsing
-
--- These are the REPL commands
-data Command = Set Name Expr -- assign an expression to a variable name
-             | Print Expr    -- evaluate an expression and print the result
-             | Cond Expr Command Command
-             | Repeat Int [Command]
-             | While Expr [Command]
-             | DoWhile Expr [Command]
-             | For [Command] Expr [Command] [Command]
-             | Quit
-  deriving Show
-
--- At first, 'Expr' contains only addition, conversion to strings, and integer
--- values. You will need to add other operations, and variables
-data Expr = Add Expr Expr
-          | Sub Expr Expr
-          | Mul Expr Expr
-          | Div Expr Expr
-          | Abs Expr
-          | Mod Expr Expr
-          | Pow Expr Expr
-          | ToNum Expr
-          | ToString Expr
-          | Concat Expr Expr
-          | Val Value
-          | Get Name
-          | If Expr Expr Expr
-  deriving Show
-
-data Value = NumVal Numeric | StrVal String | Input
-
-instance Show Value where
-  show (NumVal (Int val)) = show val
-  show (NumVal (Float val)) = show val
-  show (StrVal val) = show val
-  show Input = "<INPUT>"
-
-data Numeric = Int Int | Float Double
-  deriving Show
-
-type Name = String
+import Data_type
 
 pCommand :: Parser Command
 pCommand = pSet ||| pCond
