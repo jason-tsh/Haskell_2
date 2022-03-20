@@ -29,14 +29,31 @@ data Expr = Add Expr Expr
           | Val Value
           | Get Name
           | If Expr Expr Expr
+          | Equal Expr Expr
+          | NotEqual Expr Expr
+          | Greater Expr Expr
+          | GreaterEqual Expr Expr
+          | Less Expr Expr
+          | LessEqual Expr Expr
   deriving Show
 
-data Value = NumVal Numeric | StrVal String
+data Value = NumVal Numeric | StrVal String | Bool Bool
+  deriving Ord
+
+instance Eq Value where
+  (==) (NumVal x) (NumVal y) = x == y
+  (==) (NumVal x) _ = False
+  (==) (StrVal x) (StrVal y) = x == y
+  (==) (StrVal x) _ = False
+  (==) (Bool x) (Bool y) = x == y
+  (==) (Bool x) _ = False
+  (/=) x y = not $ x == y
 
 instance Show Value where
   show (NumVal (Int val)) = show val
   show (NumVal (Float val)) = show val
   show (StrVal val) = show val
+  show (Bool val) = show val
 
 data Numeric = Int Int | Float Double
   deriving Show

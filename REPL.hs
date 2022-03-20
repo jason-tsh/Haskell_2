@@ -103,6 +103,7 @@ process (Cond cond x y)
           if errorFlag st then return () else do
           case eval (vars st) cond of
             Just (NumVal (Int int)) -> if int /= 0 then process x else process y
+            Just (Bool bool) -> if bool then process x else process y
             _ -> do outputStrLn "Non-deterministic condition, action aborted"
                     lift $ put st {errorFlag = True}
 

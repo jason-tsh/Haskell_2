@@ -31,7 +31,28 @@ eval vars (If cond x y) = case eval vars cond of
                                                           then eval vars x
                                                           else eval vars y
                                                _ -> Nothing
+                          Just (Bool val) -> Just (Bool val)
                           _ -> Nothing
+eval vars (Equal x y) = case (eval vars x, eval vars y) of
+                          (Just xval, Just yval) -> Just (Bool $ xval == yval)
+                          _ -> Just (Bool False)
+eval vars (NotEqual x y) = case eval vars (Equal x y) of
+                             Just (Bool val) -> Just (Bool $ not val)
+                             _ -> Just (Bool False)
+eval vars (Greater x y) = case (eval vars x, eval vars y) of
+                            (Just xval, Just yval) -> Just (Bool $ xval > yval)
+                            _ -> Just (Bool False)
+eval vars (GreaterEqual x y) = case eval vars (Equal x y) of
+                                 Just (Bool val) -> Just (Bool val)
+                                 _ -> case eval vars (Greater x y) of
+                                        Just (Bool val) -> Just (Bool val)
+                                        _ -> Just (Bool False)
+eval vars (Less x y) = case eval vars (GreaterEqual x y) of
+                         Just (Bool val) -> Just (Bool $ not val)
+                         _ -> Just (Bool False)
+eval vars (LessEqual x y) = case eval vars (Greater x y) of
+                              Just (Bool val) -> Just (Bool $ not val)
+                              _ -> Just (Bool False)
 
 numOp :: [(Name, Value, Int)] -> (Numeric -> Numeric) -> Expr -> Maybe Value
 numOp vars f x = case eval vars x of
@@ -39,42 +60,34 @@ numOp vars f x = case eval vars x of
                      _ -> Nothing
 
 numOp2 :: [(Name, Value, Int)] -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
-numOp2 vars f x y = case eval vars x of
-                     Just (NumVal xval) -> case eval vars y of
-                            Just (NumVal yval) -> Just $ NumVal (f xval yval)
-                            _ -> Nothing
+numOp2 vars f x y = case (eval vars x, eval vars y) of
+                     (Just (NumVal xval), Just (NumVal yval)) -> Just $ NumVal (f xval yval)
                      _ -> Nothing
 
 doDivision :: Numeric -> Numeric -> Numeric
-doDivision x y = case x of
-       Int xval -> case y of
-                     Int yval -> Int (quot xval yval)
-                     Float yval -> Float (int2Double xval / yval)
-       Float xval -> case y of
-                     Int yval -> Float (xval / int2Double yval)
-                     Float yval -> Float (xval / yval)
+doDivision x y = case (x, y) of
+                   (Int xval, Int yval) -> Int (quot xval yval)
+                   (Int xval, Float yval) -> Float (int2Double xval / yval)
+                   (Float xval, Int yval) -> Float (xval / int2Double yval)
+                   (Float xval, Float yval) -> Float (xval / yval)
 
 doMod :: Numeric -> Numeric -> Numeric
-doMod x y = case x of
-       Int xval -> case y of
-                     Int yval -> Int (mod xval yval)
-                     Float yval -> Float (doubleMod (int2Double xval) yval)
-       Float xval -> case y of
-                     Int yval -> Float (doubleMod xval (int2Double yval))
-                     Float yval -> Float (doubleMod xval yval)
+doMod x y = case (x, y) of
+              (Int xval, Int yval) -> Int (mod xval yval)
+              (Int xval, Float yval) -> Float (doubleMod (int2Double xval) yval)
+              (Float xval, Int yval) -> Float (doubleMod xval (int2Double yval))
+              (Float xval, Float yval) -> Float (doubleMod xval yval)
 
 --https://hackage.haskell.org/package/base-4.8.0.0/docs/Prelude.html#v:round
 doubleMod :: Double -> Double -> Double
 doubleMod x y = x - (y * int2Double (floor (x / y)))
 
 doPow :: Numeric -> Numeric -> Numeric
-doPow x y = case x of
-       Int xval -> case y of
-              Int yval -> Int (xval ^ yval)
-              Float yval -> Float (int2Double xval ** yval)
-       Float xval -> case y of
-              Int yval -> Float (xval ^ yval)
-              Float yval -> Float (xval ** yval)
+doPow x y = case (x, y) of
+              (Int xval, Int yval) -> Int (xval ^ yval)
+              (Int xval, Float yval) -> Float (int2Double xval ** yval)
+              (Float xval, Int yval) -> Float (xval ^ yval)
+              (Float xval, Float yval) -> Float (xval ** yval)
 
 format :: String -> String --https://stackoverflow.com/questions/3740621/removing-string-double-quotes-in-haskell
 format s@[c]                     = s

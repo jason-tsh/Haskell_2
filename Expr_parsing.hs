@@ -56,36 +56,43 @@ pBody = do symbol "{"
 pExpr :: Parser Expr
 pExpr = do symbol "abs"
            Abs <$> pNum -- haskell syntax
-         ||| do symbol "toInt("
-                do char '\"'
-                   n <- pNum
-                   char '\"' *> symbol ")"
-                   return $ ToNum n
-                 ||| do v <- many1 letter
-                        symbol ")"
-                        return $ ToNum $ Get v -- variable
-         ||| do symbol "toString("
-                n <- pExpr
-                symbol ")"
-                return $ ToString n
          ||| do symbol "if"
                 cond <- pExpr
                 symbol "then"
                 true <- pExpr
                 symbol "else"
                 If cond true <$> pExpr
-         ||| do t <- pTerm
-                do symbol "++"
-                   Concat t <$> pExpr
-                 ||| do symbol "+"
-                        Add t <$> pExpr
-                 ||| do symbol "-"
-                        Sub t <$> pExpr
-                 ||| do symbol "^"
-                        Pow t <$> pExpr
-                 ||| do symbol "mod"
-                        Mod t <$> pExpr
-                 ||| return t
+         ||| pCast
+         ||| pArith
+              ||| do t <- pTerm
+                     do symbol "++"
+                        Concat t <$> pExpr
+                      ||| return t
+
+pCast :: Parser Expr
+pCast = do symbol "toInt("
+           do char '\"'
+              n <- pNum
+              char '\"' *> symbol ")"
+              return $ ToNum n
+            ||| do v <- many1 letter
+                   symbol ")"
+                   return $ ToNum $ Get v -- variable
+         ||| do symbol "toString("
+                n <- pExpr
+                symbol ")"
+                return $ ToString n
+
+pArith :: Parser Expr
+pArith = do t <- pTerm
+            do symbol "+"
+               Add t <$> pExpr
+             ||| do symbol "-"
+                    Sub t <$> pExpr
+             ||| do symbol "^"
+                    Pow t <$> pExpr
+             ||| do symbol "mod"
+                    Mod t <$> pExpr
 
 pFactor :: Parser Expr
 pFactor = pNum ||| pVar ||| pStr ||| pUrgent
