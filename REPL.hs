@@ -120,7 +120,7 @@ process (While cond cmd)
           process (Cond cond (Repeat 1 cmd) (Print $ strVal "--While loop exits--")) --debug
           st' <- lift get
           if checkScope st' cmd
-          then Control.Monad.when (checkCond st cond) $ process (While cond cmd)
+          then Control.Monad.when (checkCond st' cond) $ process (While cond cmd)
           else outputStrLn "**Some variables not in scope**"
           lift $ put st
 
