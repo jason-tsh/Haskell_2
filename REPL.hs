@@ -16,6 +16,9 @@ data LState = LState { scope :: Int, vars :: [(Name, Value, Int)] }
 initLState :: LState
 initLState = LState 0 []
 
+strVal val = Val $ StrVal val
+intVal val = Val $ NumVal $ Int val
+
 -- Given a variable name and a value, return a new set of variables with
 -- that name and value added.
 -- If it already exists, remove the old value
@@ -26,9 +29,6 @@ updateVars name val scope vars = (name, val, scope) : dropVar name vars
 dropVar :: Name -> [(Name, Value, Int)] -> [(Name, Value, Int)]
 dropVar name = filter (\var -> fst3 var /= name)
 
-strVal val = Val $ StrVal val
-intVal val = Val $ NumVal $ Int val
-
 checkCond :: LState -> Expr -> Bool
 checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
                       Just (NumVal (Int 1)) -> True
@@ -37,7 +37,7 @@ checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
 checkScope :: LState -> [Command] -> Bool
 checkScope st [] = True
 checkScope st (x:xs) = case x of
-                         (Set var e) -> case go var $ vars st of
+                         (Set var e) -> case extract var $ vars st of
                                           Just x -> checkScope st xs
                                           Nothing -> case eval (vars st) e of
                                                        Just val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
@@ -48,14 +48,10 @@ checkScope st (x:xs) = case x of
                          (While cond cmd) -> condCheck cond $ blockCheck cmd
                          (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
                          (For init cond after cmd) -> if null init then condCheck cond $ blockCheck (after ++ cmd)
-                                                                   else checkScope st (init ++ For [] cond after cmd : cmd)
-                                                               
+                                                                   else checkScope st (init ++ For [] cond after cmd : xs)
+
                          Quit -> checkScope st xs
-                         where go key [] =  Nothing--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
-                               go key ((x,y,z):xys)
-                                 | key == x  =  Just (x,y,z)
-                                 | otherwise =  go key xys
-                               blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
+                         where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
                                                         Just val -> check
                                                         Nothing -> False
@@ -63,11 +59,19 @@ checkScope st (x:xs) = case x of
 batch :: [Command] -> InputT (StateT LState IO) ()
 batch = foldr ((>>) . process) (return ())
 
+clear :: StateT LState IO ()
+clear = do st <- get
+           put st {vars = filter (\var -> lst3 var <= scope st) (vars st)}
+           return ()
+
 process :: Command -> InputT (StateT LState IO) ()
 process (Set var e) = do
      st <- lift get
+     let varScope = case extract var (vars st) of
+                      Just (var, val, vScope) -> vScope
+                      Nothing -> scope st
      let go e = case eval (vars st) e of
-                    Just val -> st {vars = updateVars var val (scope st) (vars st)}
+                    Just val -> st {vars = updateVars var val varScope (vars st)}
                     Nothing -> st
      let exit st = lift $ put st
      outputStrLn $ show (eval (vars st) e)
@@ -100,19 +104,25 @@ process (Cond cond x y)
 process (Repeat acc cmd)
      = do outputStrLn $ show (Repeat acc cmd)
           st <- lift get
-          if checkScope st cmd
-          then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc-1) cmd)
+          lift $ put st {scope = scope st + 1}
+          outputStrLn $ show (vars st)++ show (scope st)
+          if checkScope st {scope = scope st + 1} cmd
+          then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc - 1) cmd)
                                             else do outputStrLn "--Repeat loop exits--" --debug
                                                     lift $ put st
-          else outputStrLn "**Variable not in scope**"
+          else outputStrLn "**Some variables not in scope**"
 
 process (While cond cmd)
      = do outputStrLn $ show (While cond cmd)
-          process (Cond cond (Repeat 1 cmd) (Print $ strVal "--While loop exits--")) --debug
           st <- lift get
-          if checkScope st cmd
+          lift $ put st {scope = scope st + 1}
+          outputStrLn $ show (vars st)++ show (scope st)
+          process (Cond cond (Repeat 1 cmd) (Print $ strVal "--While loop exits--")) --debug
+          st' <- lift get
+          if checkScope st' cmd
           then Control.Monad.when (checkCond st cond) $ process (While cond cmd)
-          else outputStrLn "**Variable not in scope**"
+          else outputStrLn "**Some variables not in scope**"
+          lift $ put st
 
 process (DoWhile cond cmd)
      = do outputStrLn $ show (DoWhile cond cmd)
@@ -120,11 +130,14 @@ process (DoWhile cond cmd)
 
 process (For init cond after cmd)
      = do outputStrLn $ show (For init cond after cmd)
-          batch init
           st <- lift get
-          if checkScope st (init ++ Cond cond Quit Quit : after ++ cmd)
-          then Control.Monad.when (checkCond st cond) $ process (While cond (cmd ++ after))
-          else outputStrLn "**Variable not in scope**"
+          lift $ put st {scope = scope st + 1}
+          batch init
+          st' <- lift get
+          if checkScope st' (init ++ Cond cond Quit Quit : after ++ cmd)
+          then Control.Monad.when (checkCond st' cond) $ process (While cond (cmd ++ after))
+          else outputStrLn "**Some variables not in scope**"
+          lift $ put st
 
 process Quit = lift $ lift exitSuccess
 
@@ -138,4 +151,7 @@ repl = do inp <- getInputLine "> "
           case parse pCommand $ fromMaybe "" inp of
                [(cmd, "")] -> process cmd -- Must parse entire input
                _ -> do outputStrLn "Parse error"
+          lift clear
+          st <- lift get
+          outputStrLn $ show (vars st)++ show (scope st)
           repl

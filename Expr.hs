@@ -37,6 +37,7 @@ numOp :: [(Name, Value, Int)] -> (Numeric -> Numeric) -> Expr -> Maybe Value
 numOp vars f x = case eval vars x of
                      Just (NumVal xval) -> Just $ NumVal (f xval)
                      _ -> Nothing
+
 numOp2 :: [(Name, Value, Int)] -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
 numOp2 vars f x y = case eval vars x of
                      Just (NumVal xval) -> case eval vars y of
@@ -88,6 +89,11 @@ lookup3 _key [] =  Nothing
 lookup3  key ((x,y,_):xys)
     | key == x  =  Just y
     | otherwise =  lookup3 key xys
+
+extract key [] =  Nothing--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+extract key ((x,y,z):xys)
+  | key == x  =  Just (x,y,z)
+  | otherwise =  extract key xys
 
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
