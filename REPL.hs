@@ -11,10 +11,10 @@ import qualified Control.Monad
 import System.Console.Haskeline
 import System.Exit
 
-data LState = LState { scope :: Int, vars :: [(Name, Value, Int)] }
+data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool }
 
 initLState :: LState
-initLState = LState 0 []
+initLState = LState 0 [] False
 
 strVal val = Val $ StrVal val
 intVal val = Val $ NumVal $ Int val
@@ -61,18 +61,19 @@ batch = foldr ((>>) . process) (return ())
 
 clear :: StateT LState IO ()
 clear = do st <- get
-           put st {vars = filter (\var -> lst3 var <= scope st) (vars st)}
+           put st {vars = filter (\var -> lst3 var <= scope st) (vars st), errorFlag = False}
            return ()
 
 process :: Command -> InputT (StateT LState IO) ()
 process (Set var e) = do
      st <- lift get
+     if errorFlag st then return () else do
      let varScope = case extract var (vars st) of
                       Just (var, val, vScope) -> vScope
                       Nothing -> scope st
      let go e = case eval (vars st) e of
                     Just val -> st {vars = updateVars var val varScope (vars st)}
-                    Nothing -> st
+                    Nothing -> st {errorFlag = True}
      let exit st = lift $ put st
      outputStrLn $ show (eval (vars st) e)
      case e of
@@ -80,7 +81,7 @@ process (Set var e) = do
                                      case parse pExpr $ fromMaybe "" inp of
                                         [(e',"")] -> exit $ go e'
                                         _ -> do outputStrLn "Invalid input, action aborted"
-                                                exit st
+                                                exit st {errorFlag = True}
           _ -> do -- st' should include the variable set to the result of evaluating e
                   Control.Monad.when (isNothing (eval (vars st) e)) $
                                      outputStrLn "Referred data not found, action aborted"
@@ -88,42 +89,52 @@ process (Set var e) = do
 
 process (Print e)
      = do st <- lift get
+          if errorFlag st then return () else do
           outputStrLn $ show (Print e)
           case eval (vars st) e of
                     Just val -> outputStrLn $ show val
-                    Nothing -> outputStrLn "No entry/ valid result found"
+                    Nothing -> do outputStrLn "No entry/ valid result found"
+                                  lift $ put st {errorFlag = True}
           -- Print the result of evaluation
 
 process (Cond cond x y)
      = do outputStrLn $ show (Cond cond x y)
           st <- lift get
+          if errorFlag st then return () else do
           case eval (vars st) cond of
             Just (NumVal (Int int)) -> if int /= 0 then process x else process y
-            _ -> outputStrLn "Non-deterministic condition, action aborted"
+            _ -> do outputStrLn "Non-deterministic condition, action aborted"
+                    lift $ put st {errorFlag = True}
 
 process (Repeat acc cmd)
      = do outputStrLn $ show (Repeat acc cmd)
           st <- lift get
+          if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
           outputStrLn $ show (vars st)++ show (scope st)
           if checkScope st {scope = scope st + 1} cmd
           then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc - 1) cmd)
                                             else do outputStrLn "--Repeat loop exits--" --debug
                                                     st' <- lift get
-                                                    lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
-          else outputStrLn "**Some variables not in scope**"
+                                                    if errorFlag st'
+                                                    then lift $ put st
+                                                    else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+          else do outputStrLn "**Some variables not in scope**"
+                  lift $ put st {errorFlag = True}
 
 process (While cond cmd)
      = do outputStrLn $ show (While cond cmd)
           st <- lift get
+          if errorFlag st then return () else do
           outputStrLn $ show (vars st) ++ show (scope st)
           process (Cond cond (Repeat 1 cmd) (Print $ strVal "--While loop exits--")) --debug
           st' <- lift get
           if checkScope st' cmd
           then Control.Monad.when (checkCond st' cond) $ process (While cond cmd)
-          else outputStrLn "**Some variables not in scope**"
+          else do outputStrLn "**Some variables not in scope**"
+                  lift $ put st {errorFlag = True}
           st' <- lift get
-          lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+          if errorFlag st' then lift $ put st else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
 
 process (DoWhile cond cmd)
      = do outputStrLn $ show (DoWhile cond cmd)
@@ -132,14 +143,16 @@ process (DoWhile cond cmd)
 process (For init cond after cmd)
      = do outputStrLn $ show (For init cond after cmd)
           st <- lift get
+          if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
           batch init
           st' <- lift get
           if checkScope st' (init ++ Cond cond Quit Quit : after ++ cmd)
           then Control.Monad.when (checkCond st' cond) $ process (While cond (cmd ++ after))
-          else outputStrLn "**Some variables not in scope**"
+          else do outputStrLn "**Some variables not in scope**"
+                  lift $ put st {errorFlag = True}
           st' <- lift get
-          lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+          if errorFlag st' then lift $ put st else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
 
 process Quit = lift $ lift exitSuccess
 
