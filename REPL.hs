@@ -109,20 +109,21 @@ process (Repeat acc cmd)
           if checkScope st {scope = scope st + 1} cmd
           then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc - 1) cmd)
                                             else do outputStrLn "--Repeat loop exits--" --debug
-                                                    lift $ put st
+                                                    st' <- lift get
+                                                    lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
           else outputStrLn "**Some variables not in scope**"
 
 process (While cond cmd)
      = do outputStrLn $ show (While cond cmd)
           st <- lift get
-          lift $ put st {scope = scope st + 1}
-          outputStrLn $ show (vars st)++ show (scope st)
+          outputStrLn $ show (vars st) ++ show (scope st)
           process (Cond cond (Repeat 1 cmd) (Print $ strVal "--While loop exits--")) --debug
           st' <- lift get
           if checkScope st' cmd
           then Control.Monad.when (checkCond st' cond) $ process (While cond cmd)
           else outputStrLn "**Some variables not in scope**"
-          lift $ put st
+          st' <- lift get
+          lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
 
 process (DoWhile cond cmd)
      = do outputStrLn $ show (DoWhile cond cmd)
@@ -137,7 +138,8 @@ process (For init cond after cmd)
           if checkScope st' (init ++ Cond cond Quit Quit : after ++ cmd)
           then Control.Monad.when (checkCond st' cond) $ process (While cond (cmd ++ after))
           else outputStrLn "**Some variables not in scope**"
-          lift $ put st
+          st' <- lift get
+          lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
 
 process Quit = lift $ lift exitSuccess
 
