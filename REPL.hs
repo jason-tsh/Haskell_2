@@ -32,6 +32,7 @@ dropVar name = filter (\var -> fst3 var /= name)
 checkCond :: LState -> Expr -> Bool
 checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
                       Just (NumVal (Int 1)) -> True
+                      Just (Bool bool) -> bool
                       _ -> False
 
 checkScope :: LState -> [Command] -> Bool
