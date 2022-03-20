@@ -61,4 +61,20 @@ instance Num Numeric where
        signum (Float x) = Float (signum x)
        fromInteger x = Int (fromInteger x)
 
+instance Eq Numeric where
+  (==) (Int x) (Int y) = x == y
+  (==) (Float x) (Int y) = x == int2Double y
+  (==) (Int x) (Float y) = int2Double x == y
+  (==) (Float x) (Float y) = x == y
+  (/=) x y = not $ x == y
+
+instance Ord Numeric where
+  (<=) (Int x) (Int y)= x <= y
+  (<=) (Float x) (Int y) = x <= int2Double y
+  (<=) (Int x) (Float y) = int2Double x <= y
+  (<=) (Float x) (Float y) = x <= y
+  (<) x y = x <= y && x /= y
+  (>=) x y = not $ x < y
+  (>) x y = not $ x <= y
+
 type Name = String
