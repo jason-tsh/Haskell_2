@@ -12,7 +12,7 @@ pCommand = pSet ||| pCond
                    do file <- many $ sat (/= '\"')
                       return $ Read file
                  ||| do symbol "input"
-                        return $ Read "input" 
+                        return $ Read "input"
             ||| do symbol "print"
                    Print <$> pExpr
             ||| do symbol "quit"
@@ -25,7 +25,7 @@ pSet = do t <- many1 letter
 
 pCond :: Parser Command
 pCond = do symbol "if"
-           cond <- pExpr
+           cond <- pBools
            symbol "then"
            true <- pCommand
            symbol "else"
@@ -34,17 +34,17 @@ pCond = do symbol "if"
                 acc <- many1 digit
                 Repeat (toInt acc) <$> pBody
          ||| do symbol "while"
-                cond <- pExpr
+                cond <- pBools
                 While cond <$> pBody
          ||| do symbol "do"
                 cmd <- pBody
                 symbol "while" *> symbol "("
-                cond <- pExpr
+                cond <- pBools
                 symbol ")"
                 return $ DoWhile cond cmd
          ||| do symbol "for"
                 init <- pHead pSet <* symbol ";"
-                cond <- pExpr <* symbol ";"
+                cond <- pBools <* symbol ";"
                 after <- pHead pSet
                 For init cond after <$> pBody
 
@@ -61,11 +61,40 @@ pBody = do symbol "{"
            symbol "}"
            return (fst:rest)
 
+pBools :: Parser Expr
+pBools = do symbol "!"
+            symbol "("
+            fst <- pBools ||| pUrgent pBools
+            symbol ")"
+            return $  Not fst
+          ||| do fst <- pBool ||| pUrgent pBools
+                 do symbol "&&"
+                    And fst <$> pBools
+                  ||| do symbol "||"
+                         Or fst <$> pBools
+                  ||| return fst
+
+pBool :: Parser Expr
+pBool = do fst <- pNumOp
+           do symbol "=="
+              Equal fst <$> pNumOp
+            ||| do symbol "/="
+                   NotEqual fst <$> pNumOp
+            ||| do symbol ">="
+                   GreaterEqual fst <$> pNumOp
+            ||| do symbol ">"
+                   Greater fst <$> pNumOp
+            ||| do symbol "<="
+                   LessEqual fst <$> pNumOp
+            ||| do symbol "<"
+                   Less fst <$> pNumOp
+            ||| return fst
+
 pExpr :: Parser Expr
 pExpr = do symbol "abs"
            Abs <$> pNum -- haskell syntax
          ||| do symbol "if"
-                cond <- pExpr
+                cond <- pBools
                 symbol "then"
                 true <- pExpr
                 symbol "else"
@@ -76,6 +105,9 @@ pExpr = do symbol "abs"
                      do symbol "++"
                         Concat t <$> pExpr
                       ||| return t
+
+pNumOp :: Parser Expr
+pNumOp = pArith ||| pTerm
 
 pCast :: Parser Expr
 pCast = do symbol "toInt("
@@ -103,7 +135,7 @@ pArith = do t <- pTerm
                     Mod t <$> pExpr
 
 pFactor :: Parser Expr
-pFactor = pNum ||| pVar ||| pStr ||| pUrgent
+pFactor = pNum ||| pVar ||| pStr ||| pUrgent pExpr
 
 pNum :: Parser Expr
 pNum = pFloat ||| pInt
@@ -122,11 +154,11 @@ pStr = do char '\"'
           space
           return (Val $ StrVal v) -- string (empty string is possible)
 
-pUrgent :: Parser Expr
-pUrgent = do symbol "("
-             e <- pExpr
-             symbol ")"
-             return e --- expression with priority
+pUrgent :: Parser p -> Parser p
+pUrgent p = do symbol "("
+               e <- p
+               symbol ")"
+               return e --- expression with priority
 
 pInt :: Parser Expr
 pInt = do symbol "(-"

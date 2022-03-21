@@ -27,11 +27,9 @@ eval vars (Concat x y) = Just $ StrVal $ format (go x) ++ format (go y)
                           where go x = maybe "*Invalid/ out-of-scope expression*" show (eval vars x)
 eval vars (If cond x y) = case eval vars cond of
                           Just (NumVal val) -> case val of
-                                               Int int -> if int /= 0
-                                                          then eval vars x
-                                                          else eval vars y
+                                               Int int -> if int /= 0 then eval vars x else eval vars y
                                                _ -> Nothing
-                          Just (Bool val) -> Just (Bool val)
+                          Just (Bool val) -> if val then eval vars x else eval vars y
                           _ -> Nothing
 eval vars (Equal x y) = case (eval vars x, eval vars y) of
                           (Just xval, Just yval) -> Just (Bool $ xval == yval)
@@ -43,7 +41,7 @@ eval vars (Greater x y) = case (eval vars x, eval vars y) of
                             (Just xval, Just yval) -> Just (Bool $ xval > yval)
                             _ -> Just (Bool False)
 eval vars (GreaterEqual x y) = case eval vars (Equal x y) of
-                                 Just (Bool val) -> Just (Bool val)
+                                 Just (Bool True) -> Just (Bool True)
                                  _ -> case eval vars (Greater x y) of
                                         Just (Bool val) -> Just (Bool val)
                                         _ -> Just (Bool False)
@@ -53,6 +51,15 @@ eval vars (Less x y) = case eval vars (GreaterEqual x y) of
 eval vars (LessEqual x y) = case eval vars (Greater x y) of
                               Just (Bool val) -> Just (Bool $ not val)
                               _ -> Just (Bool False)
+eval vars (Not x) = case eval vars x of
+                      Just (Bool val) -> Just (Bool $ not val)
+                      _ -> Just (Bool False)
+eval vars (And x y) = case (eval vars x, eval vars y) of
+                        (Just (Bool xval), Just (Bool yval)) -> Just (Bool $ xval && yval)
+                        _ -> Just (Bool False)
+eval vars (Or x y) = case (eval vars x, eval vars y) of
+                       (Just (Bool xval), Just (Bool yval)) -> Just (Bool $ xval || yval)
+                       _ -> Just (Bool False)
 
 numOp :: [(Name, Value, Int)] -> (Numeric -> Numeric) -> Expr -> Maybe Value
 numOp vars f x = case eval vars x of

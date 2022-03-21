@@ -36,6 +36,9 @@ data Expr = Add Expr Expr
           | GreaterEqual Expr Expr
           | Less Expr Expr
           | LessEqual Expr Expr
+          | Not Expr
+          | And Expr Expr
+          | Or Expr Expr
   deriving Show
 
 data Value = NumVal Numeric | StrVal String | Bool Bool

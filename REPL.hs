@@ -33,7 +33,6 @@ dropVar name = filter (\var -> fst3 var /= name)
 checkCond :: LState -> Expr -> Bool
 checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
                       Just (NumVal (Int 1)) -> True
-                      Just (Bool bool) -> bool
                       _ -> False
 
 checkScope :: LState -> [Command] -> Bool
@@ -166,7 +165,6 @@ process (Read file)
                           process (Read $ fromMaybe "" inp)
             _ -> do exist <- lift $ lift $ doesFileExist file
                     if exist then do content <- lift $ lift $ readFile file
-                                     outputStrLn content
                                      case parse pBatch content of
                                        [(list, "")] -> batch list
                                        _ -> outputStrLn "File parse error"
