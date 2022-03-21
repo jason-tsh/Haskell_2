@@ -57,6 +57,9 @@ checkScope st (x:xs) = case x of
                                                         Just val -> check
                                                         Nothing -> False
 
+checkError :: LState -> LState -> InputT (StateT LState IO) ()
+checkError st st' = if errorFlag st' then lift $ put st else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+
 batch :: [Command] -> InputT (StateT LState IO) ()
 batch = foldr ((>>) . process) (return ())
 
@@ -136,7 +139,7 @@ process (While cond cmd)
           else do outputStrLn "**Some variables not in scope**"
                   lift $ put st {errorFlag = True}
           st' <- lift get
-          if errorFlag st' then lift $ put st else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+          checkError st st'
 
 process (DoWhile cond cmd)
      = do outputStrLn $ show (DoWhile cond cmd)
@@ -154,7 +157,7 @@ process (For init cond after cmd)
           else do outputStrLn "**Some variables not in scope**"
                   lift $ put st {errorFlag = True}
           st' <- lift get
-          if errorFlag st' then lift $ put st else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+          checkError st st'
 
 process Quit = lift $ lift exitSuccess
 
