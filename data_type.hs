@@ -11,6 +11,7 @@ data Command = Set Name Expr -- assign an expression to a variable name
              | While Expr [Command]
              | DoWhile Expr [Command]
              | For [Command] Expr [Command] [Command]
+             | Read Name
              | Quit
   deriving Show
 

@@ -3,8 +3,16 @@ module Expr_parsing where
 import Parsing
 import Data_type
 
+pBatch :: Parser [Command]
+pBatch = many pCommand <* many (symbol "\n")
+
 pCommand :: Parser Command
 pCommand = pSet ||| pCond
+            ||| do symbol "read"
+                   do file <- many $ sat (/= '\"')
+                      return $ Read file
+                 ||| do symbol "input"
+                        return $ Read "input" 
             ||| do symbol "print"
                    Print <$> pExpr
             ||| do symbol "quit"

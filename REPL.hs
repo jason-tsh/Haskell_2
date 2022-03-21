@@ -10,6 +10,7 @@ import Control.Monad.Trans.Class
 import qualified Control.Monad
 import System.Console.Haskeline
 import System.Exit
+import System.Directory
 
 data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool }
 
@@ -50,7 +51,7 @@ checkScope st (x:xs) = case x of
                          (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
                          (For init cond after cmd) -> if null init then condCheck cond $ blockCheck (after ++ cmd)
                                                                    else checkScope st (init ++ For [] cond after cmd : xs)
-
+                         (Read file) -> checkScope st xs
                          Quit -> checkScope st xs
                          where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
@@ -158,6 +159,18 @@ process (For init cond after cmd)
                   lift $ put st {errorFlag = True}
           st' <- lift get
           checkError st st'
+
+process (Read file)
+     = do case file of 
+            "input" -> do inp <- getInputLine "File: "
+                          process (Read $ fromMaybe "" inp)
+            _ -> do exist <- lift $ lift $ doesFileExist file
+                    if exist then do content <- lift $ lift $ readFile file
+                                     outputStrLn content
+                                     case parse pBatch content of
+                                       [(list, "")] -> batch list
+                                       _ -> outputStrLn "File parse error"
+                    else outputStrLn "File does not exist"
 
 process Quit = lift $ lift exitSuccess
 
