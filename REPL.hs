@@ -12,10 +12,12 @@ import System.Console.Haskeline
 import System.Exit
 import System.Directory
 
-data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool }
+data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], func :: [FuncData], errorFlag :: Bool }
+
+data FuncData = FuncData { name :: Name, argc :: Int, body :: [Command], children :: [FuncData]}
 
 initLState :: LState
-initLState = LState 0 [] False
+initLState = LState 0 [] [] False
 
 strVal val = Val $ StrVal val
 intVal val = Val $ NumVal $ Int val

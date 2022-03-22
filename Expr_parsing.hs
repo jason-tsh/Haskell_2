@@ -56,10 +56,12 @@ pHead p = do fst <- p
 
 pBody :: Parser [Command]
 pBody = do symbol "{"
-           fst <- pCommand
-           rest <- many (symbol ";" *> pCommand)
-           symbol "}"
-           return (fst:rest)
+           do fst <- pCommand
+              rest <- many (symbol ";" *> pCommand)
+              symbol "}"
+              return (fst:rest)
+            ||| do symbol "}"
+                   return []
 
 pBools :: Parser Expr
 pBools = do symbol "!"
