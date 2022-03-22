@@ -12,12 +12,16 @@ import System.Console.Haskeline
 import System.Exit
 import System.Directory
 
-data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], func :: [FuncData], errorFlag :: Bool }
+data LState = LState { scope :: Int, vars :: [(Name, Value, Int)],
+                       current :: FuncData, func :: [FuncData], errorFlag :: Bool }
 
 data FuncData = FuncData { name :: Name, argc :: Int, body :: [Command], children :: [FuncData]}
 
 initLState :: LState
-initLState = LState 0 [] [] False
+initLState = LState 0 [] initFuncData [] False
+
+initFuncData :: FuncData
+initFuncData = FuncData "" 0 [] []
 
 strVal val = Val $ StrVal val
 intVal val = Val $ NumVal $ Int val
@@ -67,7 +71,8 @@ batch = foldr ((>>) . process) (return ())
 
 clear :: StateT LState IO ()
 clear = do st <- get
-           put st {vars = filter (\var -> lst3 var <= scope st) (vars st), errorFlag = False}
+           put st {vars = filter (\var -> lst3 var <= scope st) (vars st),
+                   current = initFuncData, errorFlag = False}
            return ()
 
 process :: Command -> InputT (StateT LState IO) ()

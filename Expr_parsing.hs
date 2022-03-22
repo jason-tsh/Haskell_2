@@ -14,7 +14,7 @@ pComment :: Parser ()
 pComment = symbol "--" >> many (sat (/= '\n')) >> space >> return ()
 
 pCommand :: Parser Command
-pCommand = pSet ||| pCond
+pCommand = pFunc ||| pSet ||| pCond
             ||| do symbol "read"
                    do file <- many $ sat (/= '\"')
                       return $ Read file
@@ -24,6 +24,19 @@ pCommand = pSet ||| pCond
                    Print <$> pExpr
             ||| do symbol "quit"
                    return Quit
+
+pFunc :: Parser Command
+pFunc = do symbol "void"
+           name <- many1 letter
+           symbol "("
+           argv <- pHead pExpr
+           symbol ")"
+           SetFunc name (length argv) <$> pBody
+         ||| do name <- many1 letter
+                symbol "("
+                argv <- pHead pExpr
+                symbol ")"
+                return $ Func name argv
 
 pSet :: Parser Command
 pSet = do t <- many1 letter
@@ -71,37 +84,27 @@ pBody = do symbol "{" *> many pComment
                    return []
 
 pBools :: Parser Expr
-pBools = do symbol "!"
-            symbol "("
+pBools = do symbol "!" >> symbol "("
             fst <- pBools ||| pUrgent pBools
             symbol ")"
-            return $  Not fst
+            return $ Not fst
           ||| do fst <- pBool ||| pUrgent pBools
-                 do symbol "&&"
-                    And fst <$> pBools
-                  ||| do symbol "||"
-                         Or fst <$> pBools
+                 do symbol "&&" >> And fst <$> pBools
+                  ||| do symbol "||" >> Or fst <$> pBools
                   ||| return fst
 
 pBool :: Parser Expr
 pBool = do fst <- pNumOp
-           do symbol "=="
-              Equal fst <$> pNumOp
-            ||| do symbol "/="
-                   NotEqual fst <$> pNumOp
-            ||| do symbol ">="
-                   GreaterEqual fst <$> pNumOp
-            ||| do symbol ">"
-                   Greater fst <$> pNumOp
-            ||| do symbol "<="
-                   LessEqual fst <$> pNumOp
-            ||| do symbol "<"
-                   Less fst <$> pNumOp
+           do symbol "==" >> Equal fst <$> pNumOp
+            ||| do symbol "/=" >> NotEqual fst <$> pNumOp
+            ||| do symbol ">=" >> GreaterEqual fst <$> pNumOp
+            ||| do symbol ">" >> Greater fst <$> pNumOp
+            ||| do symbol "<=" >> LessEqual fst <$> pNumOp
+            ||| do symbol "<" >> Less fst <$> pNumOp
             ||| return fst
 
 pExpr :: Parser Expr
-pExpr = do symbol "abs"
-           Abs <$> pNum -- haskell syntax
+pExpr = do symbol "abs" >> Abs <$> pNum -- haskell syntax
          ||| do symbol "if"
                 cond <- pBools
                 symbol "then"
@@ -111,8 +114,7 @@ pExpr = do symbol "abs"
          ||| pCast
          ||| pArith
               ||| do t <- pTerm
-                     do symbol "++"
-                        Concat t <$> pExpr
+                     do symbol "++" >> Concat t <$> pExpr
                       ||| return t
 
 pNumOp :: Parser Expr
@@ -134,14 +136,10 @@ pCast = do symbol "toInt("
 
 pArith :: Parser Expr
 pArith = do t <- pTerm
-            do symbol "+"
-               Add t <$> pExpr
-             ||| do symbol "-"
-                    Sub t <$> pExpr
-             ||| do symbol "^"
-                    Pow t <$> pExpr
-             ||| do symbol "mod"
-                    Mod t <$> pExpr
+            do symbol "+" >> Add t <$> pExpr
+             ||| do symbol "-" >> Sub t <$> pExpr
+             ||| do symbol "^" >> Pow t <$> pExpr
+             ||| do symbol "mod" >> Mod t <$> pExpr
 
 pFactor :: Parser Expr
 pFactor = pNum ||| pVar ||| pStr ||| pUrgent pExpr
