@@ -6,7 +6,7 @@ import GHC.Real (div)
 -- These are the REPL commands
 data Command = Set Name Expr -- assign an expression to a variable name
              | Print Expr    -- evaluate an expression and print the result
-             | Cond Expr Command Command
+             | Cond Expr [Command] [Command]
              | Repeat Int [Command]
              | While Expr [Command]
              | DoWhile Expr [Command]

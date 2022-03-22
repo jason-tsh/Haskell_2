@@ -42,11 +42,11 @@ checkScope st [] = True
 checkScope st (x:xs) = case x of
                          (Set var e) -> case extract var $ vars st of
                                           Just x -> checkScope st xs
-                                          Nothing -> case eval (vars st) e of
-                                                       Just val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
-                                                       Nothing -> False
+                                          _ -> case eval (vars st) e of
+                                                  Just val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
+                                                  _ -> False
                          (Print e) -> condCheck e $ checkScope st xs
-                         (Cond cond x y) -> condCheck cond $ checkScope st xs
+                         (Cond cond x y) -> condCheck cond (blockCheck x) && condCheck cond (blockCheck y)
                          (Repeat acc cmd) -> blockCheck cmd
                          (While cond cmd) -> condCheck cond $ blockCheck cmd
                          (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
@@ -57,7 +57,7 @@ checkScope st (x:xs) = case x of
                          where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
                                                         Just val -> check
-                                                        Nothing -> False
+                                                        _ -> False
 
 checkError :: LState -> LState -> InputT (StateT LState IO) ()
 checkError st st' = if errorFlag st' then lift $ put st else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
@@ -96,7 +96,7 @@ process (Set var e) = do
 process (Print e)
      = do st <- lift get
           if errorFlag st then return () else do
-          outputStrLn $ show (Print e)
+          --outputStrLn $ show (Print e)
           case eval (vars st) e of
                     Just val -> outputStrLn $ show val
                     Nothing -> do outputStrLn "No entry/ valid result found"
@@ -104,25 +104,24 @@ process (Print e)
           -- Print the result of evaluation
 
 process (Cond cond x y)
-     = do outputStrLn $ show (Cond cond x y)
+     = do --outputStrLn $ show (Cond cond x y)
           st <- lift get
           if errorFlag st then return () else do
           case eval (vars st) cond of
-            Just (NumVal (Int int)) -> if int /= 0 then process x else process y
-            Just (Bool bool) -> if bool then process x else process y
+            Just (NumVal (Int int)) -> if int /= 0 then batch x else batch y
+            Just (Bool bool) -> if bool then batch x else batch y
             _ -> do outputStrLn "Non-deterministic condition, action aborted"
                     lift $ put st {errorFlag = True}
 
 process (Repeat acc cmd)
-     = do outputStrLn $ show (Repeat acc cmd)
+     = do --outputStrLn $ show (Repeat acc cmd)
           st <- lift get
           if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
-          outputStrLn $ show (vars st)++ show (scope st)
+          --outputStrLn $ show (vars st)++ show (scope st)
           if checkScope st {scope = scope st + 1} cmd
           then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc - 1) cmd)
-                                            else do outputStrLn "--Repeat loop exits--" --debug
-                                                    st' <- lift get
+                                            else do st' <- lift get
                                                     if errorFlag st'
                                                     then lift $ put st
                                                     else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
@@ -130,11 +129,11 @@ process (Repeat acc cmd)
                   lift $ put st {errorFlag = True}
 
 process (While cond cmd)
-     = do outputStrLn $ show (While cond cmd)
+     = do --outputStrLn $ show (While cond cmd)
           st <- lift get
           if errorFlag st then return () else do
-          outputStrLn $ show (vars st) ++ show (scope st)
-          process (Cond cond (Repeat 1 cmd) (Print $ strVal "--While loop exits--")) --debug
+          --outputStrLn $ show (vars st) ++ show (scope st)
+          process (Cond cond [Repeat 1 cmd] [])
           st' <- lift get
           if checkScope st' cmd
           then Control.Monad.when (checkCond st' cond) $ process (While cond cmd)
@@ -144,17 +143,17 @@ process (While cond cmd)
           checkError st st'
 
 process (DoWhile cond cmd)
-     = do outputStrLn $ show (DoWhile cond cmd)
+     = do --outputStrLn $ show (DoWhile cond cmd)
           process (Repeat 1 cmd) >> process (While cond cmd) -- Do then While
 
 process (For init cond after cmd)
-     = do outputStrLn $ show (For init cond after cmd)
+     = do --outputStrLn $ show (For init cond after cmd)
           st <- lift get
           if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
           batch init
           st' <- lift get
-          if checkScope st' (init ++ Cond cond Quit Quit : after ++ cmd)
+          if checkScope st' (init ++ Cond cond [Quit] [Quit] : after ++ cmd)
           then Control.Monad.when (checkCond st' cond) $ process (While cond (cmd ++ after))
           else do outputStrLn "**Some variables not in scope**"
                   lift $ put st {errorFlag = True}
@@ -162,13 +161,17 @@ process (For init cond after cmd)
           checkError st st'
 
 process (Read file)
-     = do case file of 
+     = do case file of
             "input" -> do inp <- getInputLine "File: "
                           process (Read $ fromMaybe "" inp)
             _ -> do exist <- lift $ lift $ doesFileExist file
                     if exist then do content <- lift $ lift $ readFile file
                                      case parse pBatch content of
-                                       [(list, "")] -> batch list
+                                       [(list, "")] -> do st <- lift get
+                                                          outputStrLn $ show list
+                                                          if checkScope st list
+                                                          then batch list
+                                                          else outputStrLn "**Some variables not in scope**"
                                        _ -> outputStrLn "File parse error"
                     else outputStrLn "File does not exist"
 

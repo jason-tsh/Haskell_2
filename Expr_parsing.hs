@@ -4,7 +4,14 @@ import Parsing
 import Data_type
 
 pBatch :: Parser [Command]
-pBatch = many pCommand <* many (symbol "\n")
+pBatch = do many pComment
+            do fst <- space *> many1 pCommand <* space
+               rest <- pBatch
+               return (fst ++ rest)
+             ||| return []
+
+pComment :: Parser ()
+pComment = symbol "--" >> many (sat (/= '\n')) >> space >> return ()
 
 pCommand :: Parser Command
 pCommand = pSet ||| pCond
@@ -24,17 +31,17 @@ pSet = do t <- many1 letter
           Set t <$> pExpr
 
 pCond :: Parser Command
-pCond = do symbol "if"
-           cond <- pBools
-           symbol "then"
-           true <- pCommand
-           symbol "else"
-           Cond cond true <$> pCommand
+pCond = do symbol "if" *> symbol "("
+           cond <- pBools <* symbol ")"
+           true <- pBody
+           do symbol "else"
+              Cond cond true <$> pBody
+            ||| return (Cond cond true [])
          ||| do symbol "repeat"
                 acc <- many1 digit
                 Repeat (toInt acc) <$> pBody
-         ||| do symbol "while"
-                cond <- pBools
+         ||| do symbol "while" *> symbol "("
+                cond <- pBools <* symbol ")"
                 While cond <$> pBody
          ||| do symbol "do"
                 cmd <- pBody
@@ -42,10 +49,10 @@ pCond = do symbol "if"
                 cond <- pBools
                 symbol ")"
                 return $ DoWhile cond cmd
-         ||| do symbol "for"
+         ||| do symbol "for" *> symbol "("
                 init <- pHead pSet <* symbol ";"
                 cond <- pBools <* symbol ";"
-                after <- pHead pSet
+                after <- pHead pSet <* symbol ")"
                 For init cond after <$> pBody
 
 pHead :: Parser a -> Parser [a]
@@ -55,10 +62,10 @@ pHead p = do fst <- p
            ||| return []
 
 pBody :: Parser [Command]
-pBody = do symbol "{"
+pBody = do symbol "{" *> many pComment
            do fst <- pCommand
-              rest <- many (symbol ";" *> pCommand)
-              symbol "}"
+              rest <- many (symbol ";" *> many pComment *> pCommand)
+              many pComment *> symbol "}"
               return (fst:rest)
             ||| do symbol "}"
                    return []
@@ -163,7 +170,8 @@ pUrgent p = do symbol "("
                return e --- expression with priority
 
 pInt :: Parser Expr
-pInt = do symbol "(-"
+pInt = do symbol "("
+          symbol "-"
           d <- many1 digit
           symbol ")"
           space
@@ -173,14 +181,15 @@ pInt = do symbol "(-"
                return (Val $ NumVal $ Int $ toInt d) -- positive integer
 
 pFloat :: Parser Expr
-pFloat = do symbol "(-"
+pFloat = do symbol "("
+            symbol "-"
             d <- many1 digit
-            char '.'
+            symbol "."
             f <- many1 digit
             symbol ")"
             return (Val $ NumVal $ Float $ negate $ read $ d <> "." <> f) -- negative float
           ||| do d <- many1 digit
-                 char '.'
+                 symbol "."
                  f <- many1 digit
                  space
                  return (Val $ NumVal $ Float $ read $ d <> "." <> f) -- positive float

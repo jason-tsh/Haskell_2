@@ -1,0 +1,100 @@
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+read test.txt
+quit 
+read test.txt
+read test1.txt
+read test1.txt
+read test1.txt
+read test1.txt
+read test1.txt
+read test1.txt
+read test1.txt
+quit 
+read test.txt
+quit 
+q
+read test.txt
+quit 
+read test.txt
+q
+quit 
+read test.txt
+read test.txt
+read test.txt
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+quit 
+read test.txt
+read test.txt
+quit 
+read test.txt
+read test.txt
+read test.txt
+read test.txt
+quit 
+read test.txt
+read test.txt
+read test.txt
+read test.txt
+read test.txt
+read test.txt
+read test.txt
+read test.txt
