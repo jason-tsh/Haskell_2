@@ -26,8 +26,8 @@ eval vars (ToString x) = Just $ StrVal $ format $ maybe "*Invalid/ out-of-scope 
 eval vars (Concat x y) = Just $ StrVal $ format (go x) ++ format (go y)
                           where go x = maybe "*Invalid/ out-of-scope expression*" show (eval vars x)
 eval vars (If cond x y) = case eval vars cond of
-                          Just (Bool val) -> if val then eval vars x else eval vars y
-                          _ -> Nothing
+                            Just (Bool val) -> if val then eval vars x else eval vars y
+                            _ -> Nothing
 eval vars (Equal x y) = case (eval vars x, eval vars y) of
                           (Just xval, Just yval) -> Just (Bool $ xval == yval)
                           _ -> Nothing
@@ -37,11 +37,9 @@ eval vars (NotEqual x y) = case eval vars (Equal x y) of
 eval vars (Greater x y) = case (eval vars x, eval vars y) of
                             (Just xval, Just yval) -> Just (Bool $ xval > yval)
                             _ -> Nothing
-eval vars (GreaterEqual x y) = case eval vars (Equal x y) of
+eval vars (GreaterEqual x y) = case eval vars (Or (Equal x y) (Greater x y)) of
                                  Just (Bool True) -> Just (Bool True)
-                                 _ -> case eval vars (Greater x y) of
-                                        Just (Bool val) -> Just (Bool val)
-                                        _ -> Nothing
+                                 _ -> Nothing
 eval vars (Less x y) = case eval vars (GreaterEqual x y) of
                          Just (Bool val) -> Just (Bool $ not val)
                          _ -> Nothing
