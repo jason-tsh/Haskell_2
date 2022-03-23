@@ -25,7 +25,7 @@ initFunc :: FuncData
 initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be none
 
 strVal val = Val $ StrVal val
-intVal val = Val $ NumVal $ Int val
+boolVal val = Val $ Bool val
 
 -- Update the list by add/ update the value of the corresponding variable
 updateVars :: Name -> Value -> Int -> [(Name, Value, Int)] -> [(Name, Value, Int)]
@@ -58,8 +58,8 @@ saveFunc tar [] = tar
 saveFunc tar (dest:rest) = saveFunc dest {children = tar : children dest} (parent dest)
 
 checkCond :: LState -> Expr -> Bool
-checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
-                      Just (NumVal (Int 1)) -> True
+checkCond st cond = case eval (vars st) (If cond (boolVal True) (boolVal True)) of
+                      Just (Bool bool) -> bool
                       _ -> False
 
 checkScope :: LState -> [Command] -> Bool
@@ -89,6 +89,10 @@ checkError st st' = if errorFlag st'
                     else lift $ put st' {scope = scope st, vars = filter (\var -> lst3 var <= scope st) (vars st'),
                                          current = current st}
 
+abort :: LState -> String -> InputT (StateT LState IO) ()
+abort st msg = do outputStrLn msg
+                  lift $ put st {errorFlag = True}
+
 clear :: StateT LState IO ()
 clear = do st <- get
            put st {vars = filter (\var -> lst3 var <= scope st) (vars st), errorFlag = False}
@@ -112,10 +116,8 @@ process (Set var e) = do
           Val (StrVal "input") -> do inp <- getInputLine "> "
                                      case parse pExpr $ fromMaybe "" inp of
                                         [(e',"")] -> exit $ go e'
-                                        _ -> do outputStrLn "Invalid input, action aborted"
-                                                exit st {errorFlag = True}
-          _ -> do -- st' should include the variable set to the result of evaluating e
-                  Control.Monad.when (isNothing (eval (vars st) e)) $
+                                        _ -> abort st "Invalid input, action aborted"
+          _ -> do Control.Monad.when (isNothing (eval (vars st) e)) $
                                      outputStrLn "Referred data not found, action aborted"
                   exit $ go e
 
@@ -124,18 +126,15 @@ process (Print e)
           if errorFlag st then return () else do
           case eval (vars st) e of
                     Just val -> outputStrLn $ show val
-                    Nothing -> do outputStrLn "No entry/ valid result found"
-                                  lift $ put st {errorFlag = True}
+                    Nothing -> abort st "No entry/ valid result found"
           -- Print the result of evaluation
 
 process (Cond cond x y)
      = do st <- lift get
           if errorFlag st then return () else do
           case eval (vars st) cond of
-            Just (NumVal (Int int)) -> if int /= 0 then batch x else batch y
             Just (Bool bool) -> if bool then batch x else batch y
-            _ -> do outputStrLn "Non-deterministic condition, action aborted"
-                    lift $ put st {errorFlag = True}
+            _ -> abort st "Non-deterministic condition, action aborted"
 
 process (Repeat acc cmd)
      = do st <- lift get
@@ -147,8 +146,7 @@ process (Repeat acc cmd)
                                                     if errorFlag st'
                                                     then lift $ put st
                                                     else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
-          else do outputStrLn "**Some variables not in scope**"
-                  lift $ put st {errorFlag = True}
+          else abort st "**Some variables not in scope**"
 
 process (While cond cmd)
      = do st <- lift get
@@ -157,13 +155,11 @@ process (While cond cmd)
           st' <- lift get
           if checkScope st' cmd
           then Control.Monad.when (checkCond st' cond) $ process (While cond cmd)
-          else do outputStrLn "**Some variables not in scope**"
-                  lift $ put st {errorFlag = True}
+          else abort st "**Some variables not in scope**"
           st' <- lift get
           checkError st st'
 
-process (DoWhile cond cmd)
-     = process (Repeat 1 cmd) >> process (While cond cmd) -- Do then While
+process (DoWhile cond cmd) = process (Repeat 1 cmd) >> process (While cond cmd) -- Do then While
 
 process (For init cond after cmd)
      = do st <- lift get
@@ -173,8 +169,7 @@ process (For init cond after cmd)
           st' <- lift get
           if checkScope st' (init ++ Cond cond [Quit] [Quit] : after ++ cmd)
           then Control.Monad.when (checkCond st' cond) $ process (While cond (cmd ++ after))
-          else do outputStrLn "**Some variables not in scope**"
-                  lift $ put st {errorFlag = True}
+          else abort st "**Some variables not in scope**"
           st' <- lift get
           checkError st st'
 
@@ -190,10 +185,8 @@ process (Read file)
                                        [(list, "")] -> do st <- lift get
                                                           if checkScope st list
                                                           then batch list
-                                                          else do outputStrLn "**Some variables not in scope**"
-                                                                  lift $ put st {errorFlag = True}
-                                       _ -> do outputStrLn "File parse error"
-                                               lift $ put st {errorFlag = True}
+                                                          else abort st "**Some variables not in scope**"
+                                       _ -> abort st "File parse error"
                     else do outputStrLn "File does not exist"
                             lift $ put st {errorFlag = True}
 
@@ -204,17 +197,14 @@ process (SetFunc name' argv cmd)
           if checkScope st [SetFunc name' argv cmd]
           then case name func of
                  "" -> do if name' `elem` map name (funcList st)
-                          then do outputStrLn "**Duplicated function name**"
-                                  lift $ put st {errorFlag = True}
+                          then abort st "**Duplicated function name**"
                           else lift $ put st {funcList = FuncData name' argv cmd [] []: funcList st}
                  _ -> do if name' `elem` map name (funcList st) && uniqueFunc name' [func]
-                         then do outputStrLn "**Duplicated function name**"
-                                 lift $ put st {errorFlag = True}
+                         then abort st "**Duplicated function name**"
                          else do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
                                  lift $ put st {current = func {children = FuncData name' argv cmd [func] [] : children func},
                                                 funcList = root : filter (\x -> name x /= name root) (funcList st)}
-          else do outputStrLn "**Some variables not in scope**"
-                  lift $ put st {errorFlag = True}
+          else abort st "**Some variables not in scope**"
 
 process (Func name' argv')
      = do st <- lift get
@@ -225,10 +215,8 @@ process (Func name' argv')
                          then do lift $ put st {scope = scope st + 1, current = x}
                                  batch $ zipCommand (argv x) argv' st
                                  batch (body x)
-                         else do outputStrLn "**Invalid number of arguments**"
-                                 lift $ put st {errorFlag = True}
-               Nothing -> do outputStrLn "**Function not found**"
-                             lift $ put st {errorFlag = True}
+                         else do abort st "**Invalid number of arguments**"
+               Nothing -> do abort st "**Function not found**"
           st' <- lift get
           checkError st st'
      where zipCommand [] [] st = []
@@ -246,7 +234,7 @@ process Quit = lift $ lift exitSuccess
 repl :: InputT (StateT LState IO) ()
 repl = do inp <- getInputLine "> "
           case parse pCommand $ fromMaybe "" inp of
-               [(cmd, "")] -> process cmd -- Must parse entire input
-               _ -> do outputStrLn "Parse error"
+            [(cmd, "")] -> process cmd -- Must parse entire input
+            _ -> outputStrLn "Parse error"
           lift clear
           repl
