@@ -14,7 +14,7 @@ pComment :: Parser ()
 pComment = symbol "--" >> many (sat (/= '\n')) >> space >> return ()
 
 pCommand :: Parser Command
-pCommand = pSet ||| pCond
+pCommand = pFunc ||| pSet ||| pCond
             ||| do symbol "read"
                    do file <- many $ sat (/= '\"')
                       return $ Read file
@@ -24,6 +24,19 @@ pCommand = pSet ||| pCond
                    Print <$> pExpr
             ||| do symbol "quit"
                    return Quit
+
+pFunc :: Parser Command
+pFunc = do symbol "void"
+           name <- many1 letter
+           symbol "("
+           argv <- pHead pExpr
+           symbol ")"
+           SetFunc name argv <$> pBody
+         ||| do name <- many1 letter
+                symbol "("
+                argv <- pHead pExpr
+                symbol ")"
+                return $ Func name argv
 
 pSet :: Parser Command
 pSet = do t <- many1 letter

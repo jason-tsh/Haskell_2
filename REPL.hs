@@ -12,10 +12,17 @@ import System.Console.Haskeline
 import System.Exit
 import System.Directory
 
-data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool }
+data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool,
+                       current :: FuncData, funcList :: [FuncData]}
+
+data FuncData = FuncData { name :: Name, argv :: [Expr], body :: [Command], parent :: [FuncData], children :: [FuncData]}
+     deriving Show
 
 initLState :: LState
-initLState = LState 0 [] False
+initLState = LState 0 [] False initFunc []
+
+initFunc :: FuncData
+initFunc = FuncData "" [] [] [] [] --parent attribute is a list as there can be none
 
 strVal val = Val $ StrVal val
 intVal val = Val $ NumVal $ Int val
@@ -29,6 +36,14 @@ updateVars name val scope vars = (name, val, scope) : dropVar name vars
 -- Return a new set of variables with the given name removed
 dropVar :: Name -> [(Name, Value, Int)] -> [(Name, Value, Int)]
 dropVar name = filter (\var -> fst3 var /= name)
+
+searchFunc :: Name -> [FuncData] -> Bool
+searchFunc fname [] = True
+searchFunc fname (x:xs) = fname `elem` map name (x : children x) && searchFunc fname (parent x)
+
+saveFunc :: FuncData -> [FuncData] -> FuncData
+saveFunc tar [] = tar
+saveFunc tar (dest:rest) = saveFunc dest {children = tar : children dest} (parent dest)
 
 checkCond :: LState -> Expr -> Bool
 checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
@@ -48,6 +63,8 @@ checkScope st (x:xs) = case x of
                          (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
                          (For init cond after cmd) -> condCheck cond $ blockCheck (init ++ after ++ cmd)
                          (Read file) -> checkScope st xs
+                         (SetFunc name argv cmd) -> blockCheck cmd
+                         (Func name argv) -> checkScope st xs
                          Quit -> checkScope st xs
                          where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
@@ -55,7 +72,9 @@ checkScope st (x:xs) = case x of
                                                         _ -> False
 
 checkError :: LState -> LState -> InputT (StateT LState IO) ()
-checkError st st' = if errorFlag st' then lift $ put st else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+checkError st st' = if errorFlag st' 
+                    then lift $ put st 
+                    else lift $ put st' {scope = scope st, vars = filter (\var -> lst3 var <= scope st) (vars st')}
 
 batch :: [Command] -> InputT (StateT LState IO) ()
 batch = foldr ((>>) . process) (return ())
@@ -74,9 +93,8 @@ process (Set var e) = do
                       Nothing -> scope st
      let go e = case eval (vars st) e of
                     Just val -> st {vars = updateVars var val varScope (vars st)}
-                    Nothing -> st {errorFlag = True}
+                    Nothing -> do st {errorFlag = True}
      let exit st = lift $ put st
-     outputStrLn $ show (eval (vars st) e)
      case e of
           Val (StrVal "input") -> do inp <- getInputLine "> "
                                      case parse pExpr $ fromMaybe "" inp of
@@ -91,7 +109,6 @@ process (Set var e) = do
 process (Print e)
      = do st <- lift get
           if errorFlag st then return () else do
-          --outputStrLn $ show (Print e)
           case eval (vars st) e of
                     Just val -> outputStrLn $ show val
                     Nothing -> do outputStrLn "No entry/ valid result found"
@@ -99,8 +116,7 @@ process (Print e)
           -- Print the result of evaluation
 
 process (Cond cond x y)
-     = do --outputStrLn $ show (Cond cond x y)
-          st <- lift get
+     = do st <- lift get
           if errorFlag st then return () else do
           case eval (vars st) cond of
             Just (NumVal (Int int)) -> if int /= 0 then batch x else batch y
@@ -109,11 +125,9 @@ process (Cond cond x y)
                     lift $ put st {errorFlag = True}
 
 process (Repeat acc cmd)
-     = do --outputStrLn $ show (Repeat acc cmd)
-          st <- lift get
+     = do st <- lift get
           if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
-          --outputStrLn $ show (vars st)++ show (scope st)
           if checkScope st {scope = scope st + 1} cmd
           then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc - 1) cmd)
                                             else do st' <- lift get
@@ -124,10 +138,8 @@ process (Repeat acc cmd)
                   lift $ put st {errorFlag = True}
 
 process (While cond cmd)
-     = do --outputStrLn $ show (While cond cmd)
-          st <- lift get
+     = do st <- lift get
           if errorFlag st then return () else do
-          --outputStrLn $ show (vars st) ++ show (scope st)
           process (Cond cond [Repeat 1 cmd] [])
           st' <- lift get
           if checkScope st' cmd
@@ -138,12 +150,10 @@ process (While cond cmd)
           checkError st st'
 
 process (DoWhile cond cmd)
-     = do --outputStrLn $ show (DoWhile cond cmd)
-          process (Repeat 1 cmd) >> process (While cond cmd) -- Do then While
+     = process (Repeat 1 cmd) >> process (While cond cmd) -- Do then While
 
 process (For init cond after cmd)
-     = do --outputStrLn $ show (For init cond after cmd)
-          st <- lift get
+     = do st <- lift get
           if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
           batch init
@@ -156,19 +166,46 @@ process (For init cond after cmd)
           checkError st st'
 
 process (Read file)
-     = do case file of
+     = do st <- lift get 
+          if errorFlag st then return () else do
+          case file of
             "input" -> do inp <- getInputLine "File: "
                           process (Read $ fromMaybe "" inp)
             _ -> do exist <- lift $ lift $ doesFileExist file
                     if exist then do content <- lift $ lift $ readFile file
                                      case parse pBatch content of
                                        [(list, "")] -> do st <- lift get
-                                                          outputStrLn $ show list
                                                           if checkScope st list
                                                           then batch list
-                                                          else outputStrLn "**Some variables not in scope**"
-                                       _ -> outputStrLn "File parse error"
-                    else outputStrLn "File does not exist"
+                                                          else do outputStrLn "**Some variables not in scope**"
+                                                                  lift $ put st {errorFlag = True}
+                                       _ -> do outputStrLn "File parse error"
+                                               lift $ put st {errorFlag = True}
+                    else do outputStrLn "File does not exist"
+                            lift $ put st {errorFlag = True}
+
+process (SetFunc fname argv cmd)
+     = do st <- lift get
+          if errorFlag st then return () else do
+          let func = current st
+          if checkScope st [SetFunc fname argv cmd]
+          then case name func of
+                 "" -> do if fname `elem` map name (funcList st)
+                          then do outputStrLn "**Duplicated function name**"
+                                  lift $ put st {errorFlag = True}
+                          else lift $ put st {funcList = FuncData fname argv cmd [] []: funcList st}
+                 _ -> do if fname `elem` map name (funcList st) && searchFunc fname [func]
+                         then do outputStrLn "**Duplicated function name**"
+                                 lift $ put st {errorFlag = True}
+                         else do let root = saveFunc (FuncData fname argv cmd [func] []) [func]
+                                 lift $ put st {funcList = root : filter (\x -> name x /= name root) (funcList st)}
+          else outputStrLn "**Some variables not in scope**"
+
+process (Func name argv)
+     = do st <- lift get
+          if errorFlag st then return () else do
+          st' <- lift get
+          checkError st st'
 
 process Quit = lift $ lift exitSuccess
 
@@ -184,5 +221,5 @@ repl = do inp <- getInputLine "> "
                _ -> do outputStrLn "Parse error"
           lift clear
           st <- lift get
-          outputStrLn $ show (vars st)++ show (scope st)
+          outputStrLn $ show (vars st)++ show (scope st) ++ show (funcList st)
           repl

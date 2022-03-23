@@ -5,18 +5,27 @@ snd = 0
 lst = 1 -- first three values of the sequence
 while (fst < 10) {--not a good exit condition I know
     if (flag == 1) { --we do not have switch :)
-        fst = snd + lst;
-        print "Fib seq: " ++ fst;
+        fst = snd + lst
+        print "Fib seq: " ++ fst
         flag = 2
     }
     if (flag == 2) {
-        snd = fst + lst;
-        print "Fib seq: " ++ snd;
+        snd = fst + lst
+        print "Fib seq: " ++ snd
         flag = 3 
     }
     if (flag == 3) {
-            lst = fst + snd;
-            print "Fib seq: " ++ lst;
+            lst = fst + snd
+            print "Fib seq: " ++ lst
             flag = 1
     }
 }
+
+void test(a,b,c) {
+    void testa (a,b,c) {}
+    x = 1
+    x = 2
+    print x
+}
+
+test(a,b,c)
