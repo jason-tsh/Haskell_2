@@ -22,35 +22,37 @@ initLState :: LState
 initLState = LState 0 [] False initFunc []
 
 initFunc :: FuncData
-initFunc = FuncData "" [] [] [] [] --parent attribute is a list as there can be none
+initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be none
 
 strVal val = Val $ StrVal val
 intVal val = Val $ NumVal $ Int val
 
--- Given a variable name and a value, return a new set of variables with
--- that name and value added.
--- If it already exists, remove the old value
+-- Update the list by add/ update the value of the corresponding variable
 updateVars :: Name -> Value -> Int -> [(Name, Value, Int)] -> [(Name, Value, Int)]
 updateVars name val scope vars = (name, val, scope) : dropVar name vars
 
--- Return a new set of variables with the given name removed
+-- Update the list by removing the corresponding variable
 dropVar :: Name -> [(Name, Value, Int)] -> [(Name, Value, Int)]
 dropVar name = filter (\var -> fst3 var /= name)
 
+-- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
 uniqueFunc :: Name -> [FuncData] -> Bool
 uniqueFunc name' [] = True
 uniqueFunc name' (x:xs) = name' `elem` map name (x : children x) && uniqueFunc name' (parent x)
 
+-- Check if there is a function with the same name inside the sub-tree & traverse through parent nodes till root (empty list)
 recurSearch :: Name -> [FuncData] -> Maybe FuncData
 recurSearch name' [] = Nothing
 recurSearch name' (x:xs) = case iterSearch name' (x : children x) of
                              Just result -> Just result
                              Nothing -> recurSearch name' (parent x)
 
+-- Check if there is a function with the same name inside the sub-tree
 iterSearch :: Name -> [FuncData] -> Maybe FuncData
 iterSearch name' [] = Nothing
 iterSearch name' (x:xs) = if name' == name x then Just x else iterSearch name' xs
 
+-- Update the parent nodes & traverse through them till root (empty list)
 saveFunc :: FuncData -> [FuncData] -> FuncData
 saveFunc tar [] = tar
 saveFunc tar (dest:rest) = saveFunc dest {children = tar : children dest} (parent dest)
@@ -247,6 +249,4 @@ repl = do inp <- getInputLine "> "
                [(cmd, "")] -> process cmd -- Must parse entire input
                _ -> do outputStrLn "Parse error"
           lift clear
-          st <- lift get
-          outputStrLn $ show (vars st)++ show (scope st) ++ show (funcList st)
           repl

@@ -3,36 +3,35 @@ module Data_type where
 import GHC.Float (int2Double)
 import GHC.Real (div)
 
--- These are the REPL commands
+-- Commands that will alter the state of the program
 data Command = Set Name Expr -- assign an expression to a variable name
              | Print Expr    -- evaluate an expression and print the result
-             | Cond Expr [Command] [Command]
-             | Repeat Int [Command]
-             | While Expr [Command]
+             | Cond Expr [Command] [Command] -- Conditional statement (change state)
+             | Repeat Int [Command] -- Primitive loop
+             | While Expr [Command] -- Derived loops
              | DoWhile Expr [Command]
              | For [Command] Expr [Command] [Command]
-             | Read Name
-             | SetFunc Name [Expr] [Command]
-             | Func Name [Expr]
-             | Quit
+             | Read Name -- Read a file (treated as typed by user, no local scope created)
+             | SetFunc Name [Expr] [Command] -- Set function
+             | Func Name [Expr] -- Apply function (will create a local scope)
+             | Quit -- Unconditional termination
   deriving Show
 
--- At first, 'Expr' contains only addition, conversion to strings, and integer
--- values. You will need to add other operations, and variables
-data Expr = Add Expr Expr
+-- Expressions that will collapse into a value
+data Expr = Val Value -- Literal
+          | Get Name -- Get literal from variable
+          | Add Expr Expr -- Basic arithmetic
           | Sub Expr Expr
           | Mul Expr Expr
           | Div Expr Expr
           | Abs Expr
           | Mod Expr Expr
           | Pow Expr Expr
-          | ToNum Expr
+          | ToNum Expr -- Casting
           | ToString Expr
-          | Concat Expr Expr
-          | Val Value
-          | Get Name
-          | If Expr Expr Expr
-          | Equal Expr Expr
+          | Concat Expr Expr -- String operation with auto-casting
+          | If Expr Expr Expr -- Conditional statement (return a value)
+          | Equal Expr Expr -- Logic operators
           | NotEqual Expr Expr
           | Greater Expr Expr
           | GreaterEqual Expr Expr
@@ -43,7 +42,7 @@ data Expr = Add Expr Expr
           | Or Expr Expr
   deriving Show
 
-data Value = NumVal Numeric | StrVal String | Bool Bool
+data Value = NumVal Numeric | StrVal String | Bool Bool -- Bool is internally used
   deriving Ord
 
 instance Eq Value where
@@ -55,14 +54,13 @@ instance Eq Value where
   (==) (Bool x) _ = False
   (/=) x y = not $ x == y
 
-instance Show Value where
+instance Show Value where -- Remove internal identifiers
   show (NumVal (Int val)) = show val
   show (NumVal (Float val)) = show val
   show (StrVal val) = show val
   show (Bool val) = show val
 
-data Numeric = Int Int | Float Double
-  deriving Show
+data Numeric = Int Int | Float Double -- "Automatic" casting
 
 --https://hackage.haskell.org/package/base-4.16.0.0/docs/GHC-Float.html#v:int2Double
 instance Num Numeric where
@@ -100,4 +98,4 @@ instance Ord Numeric where
   (>=) x y = not $ x < y
   (>) x y = not $ x <= y
 
-type Name = String
+type Name = String -- Alias
