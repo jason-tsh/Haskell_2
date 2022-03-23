@@ -20,10 +20,8 @@ pCommand = pFunc ||| pSet ||| pCond
                       return $ Read file
                  ||| do symbol "input"
                         return $ Read "input"
-            ||| do symbol "print"
-                   Print <$> pExpr
-            ||| do symbol "quit"
-                   return Quit
+            ||| do symbol "print" >> Print <$> pExpr
+            ||| do symbol "quit" >> return Quit
 
 pFunc :: Parser Command
 pFunc = do symbol "void"

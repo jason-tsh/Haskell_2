@@ -41,13 +41,15 @@ uniqueFunc :: Name -> [FuncData] -> Bool
 uniqueFunc name' [] = True
 uniqueFunc name' (x:xs) = name' `elem` map name (x : children x) && uniqueFunc name' (parent x)
 
-searchFunc  :: Name -> [FuncData] -> Maybe FuncData
-searchFunc name' [] = Nothing
-searchFunc name' (x:xs) = case go name' (x : children x) of
-                            Just result -> Just result
-                            Nothing -> searchFunc name' (parent x)
-     where go name' [] = Nothing
-           go name' (x:xs) = if name' == name x then Just x else go name' xs
+recurSearch :: Name -> [FuncData] -> Maybe FuncData
+recurSearch name' [] = Nothing
+recurSearch name' (x:xs) = case iterSearch name' (x : children x) of
+                             Just result -> Just result
+                             Nothing -> recurSearch name' (parent x)
+
+iterSearch :: Name -> [FuncData] -> Maybe FuncData
+iterSearch name' [] = Nothing
+iterSearch name' (x:xs) = if name' == name x then Just x else iterSearch name' xs
 
 saveFunc :: FuncData -> [FuncData] -> FuncData
 saveFunc tar [] = tar
@@ -82,7 +84,8 @@ checkScope st (x:xs) = case x of
 checkError :: LState -> LState -> InputT (StateT LState IO) ()
 checkError st st' = if errorFlag st'
                     then lift $ put st
-                    else lift $ put st' {scope = scope st, vars = filter (\var -> lst3 var <= scope st) (vars st')}
+                    else lift $ put st' {scope = scope st, vars = filter (\var -> lst3 var <= scope st) (vars st'),
+                                         current = current st}
 
 clear :: StateT LState IO ()
 clear = do st <- get
@@ -206,15 +209,16 @@ process (SetFunc name' argv cmd)
                          then do outputStrLn "**Duplicated function name**"
                                  lift $ put st {errorFlag = True}
                          else do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
-                                 lift $ put st {funcList = root : filter (\x -> name x /= name root) (funcList st)}
+                                 lift $ put st {current = func {children = FuncData name' argv cmd [func] [] : children func},
+                                                funcList = root : filter (\x -> name x /= name root) (funcList st)}
           else do outputStrLn "**Some variables not in scope**"
                   lift $ put st {errorFlag = True}
 
 process (Func name' argv')
      = do st <- lift get
           if errorFlag st then return () else do
-             let func = if name (current st) == "" then funcList st else [current st]
-             case searchFunc name' func of
+             let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
+             case func of
                Just x -> if length argv' == length (argv x)
                          then do lift $ put st {scope = scope st + 1, current = x}
                                  batch $ zipCommand (argv x) argv' st
