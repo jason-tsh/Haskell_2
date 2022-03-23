@@ -155,19 +155,16 @@ pUrgent p = do symbol "("
                return e --- expression with priority
 
 pInt :: Parser Expr
-pInt = do symbol "("
-          symbol "-"
+pInt = do symbol "(" *> symbol "-"
           d <- many1 digit
           symbol ")"
-          space
           return (Val $ NumVal $ Int $ negate $ toInt d) -- negative integer
         ||| do d <- many1 digit
                space
                return (Val $ NumVal $ Int $ toInt d) -- positive integer
 
 pFloat :: Parser Expr
-pFloat = do symbol "("
-            symbol "-"
+pFloat = do symbol "(" *> symbol "-"
             d <- many1 digit
             symbol "."
             f <- many1 digit
@@ -181,10 +178,8 @@ pFloat = do symbol "("
 
 pTerm :: Parser Expr
 pTerm = do f <- pFactor
-           do symbol "*"
-              Mul f <$> pExpr
-            ||| do symbol "/"
-                   Div f <$> pExpr
+           do symbol "*" >> Mul f <$> pExpr
+            ||| do symbol "/" >> Div f <$> pExpr
             ||| return f
 
 toInt :: String -> Int
