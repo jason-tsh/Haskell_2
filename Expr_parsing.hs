@@ -64,7 +64,7 @@ pHead p = do fst <- p
 pBody :: Parser [Command]
 pBody = do symbol "{" *> many pComment
            do fst <- pCommand
-              rest <- many (symbol ";" *> many pComment *> pCommand)
+              rest <- many (many (symbol ";") *> many pComment *> pCommand)
               many pComment *> symbol "}"
               return (fst:rest)
             ||| do symbol "}"

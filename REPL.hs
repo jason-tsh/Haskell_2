@@ -38,18 +38,15 @@ checkCond st cond = case eval (vars st) (If cond (intVal 1) (intVal 0)) of
 checkScope :: LState -> [Command] -> Bool
 checkScope st [] = True
 checkScope st (x:xs) = case x of
-                         (Set var e) -> case extract var $ vars st of
-                                          Just x -> checkScope st xs
-                                          _ -> case eval (vars st) e of
-                                                  Just val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
-                                                  _ -> False
+                         (Set var e) -> case eval (vars st) e of
+                                             Just val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
+                                             _ -> False
                          (Print e) -> condCheck e $ checkScope st xs
                          (Cond cond x y) -> condCheck cond (blockCheck x) && condCheck cond (blockCheck y)
                          (Repeat acc cmd) -> blockCheck cmd
                          (While cond cmd) -> condCheck cond $ blockCheck cmd
                          (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
-                         (For init cond after cmd) -> if null init then condCheck cond $ blockCheck (after ++ cmd)
-                                                                   else checkScope st (init ++ For [] cond after cmd : xs)
+                         (For init cond after cmd) -> condCheck cond $ blockCheck (init ++ after ++ cmd)
                          (Read file) -> checkScope st xs
                          Quit -> checkScope st xs
                          where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs

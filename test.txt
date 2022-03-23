@@ -8,17 +8,15 @@ while (fst < 10) {--not a good exit condition I know
         fst = snd + lst;
         print "Fib seq: " ++ fst;
         flag = 2
-    } else {
-        if (flag == 2) {
-            snd = fst + lst;
-            print "Fib seq: " ++ snd;
-            flag = 3
-        } else {
-            if (flag == 3) {
-                lst = fst + snd;
-                print "Fib seq: " ++ lst;
-                flag = 1
-            }
-        }
+    }
+    if (flag == 2) {
+        snd = fst + lst;
+        print "Fib seq: " ++ snd;
+        flag = 3 
+    }
+    if (flag == 3) {
+            lst = fst + snd;
+            print "Fib seq: " ++ lst;
+            flag = 1
     }
 }
