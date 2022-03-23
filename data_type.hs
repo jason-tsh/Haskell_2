@@ -12,8 +12,6 @@ data Command = Set Name Expr -- assign an expression to a variable name
              | DoWhile Expr [Command]
              | For [Command] Expr [Command] [Command]
              | Read Name
-             | SetFunc Name Int [Command]
-             | Func Name [Expr]
              | Quit
   deriving Show
 

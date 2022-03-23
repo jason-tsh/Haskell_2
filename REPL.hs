@@ -12,10 +12,7 @@ import System.Console.Haskeline
 import System.Exit
 import System.Directory
 
-data LState = LState { scope :: Int, vars :: [(Name, Value, Int)],
-                       current :: FuncData, func :: [FuncData], errorFlag :: Bool }
-
-data FuncData = FuncData { name :: Name, argc :: Int, body :: [Command], children :: [FuncData]}
+data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool }
 
 initLState :: LState
 initLState = LState 0 [] initFuncData [] False
