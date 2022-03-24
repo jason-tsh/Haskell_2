@@ -12,7 +12,7 @@ data Command = Set Name Expr -- assign an expression to a variable name
              | DoWhile Expr [Command]
              | For [Command] Expr [Command] [Command]
              | Read Name -- Read a file (treated as typed by user, no local scope created)
-             | SetFunc Name [Expr] [Command] -- Set function
+             | SetFunc Name [Name] [Command] -- Set function
              | Func Name [Expr] -- Apply function (will create a local scope)
              | Quit -- Unconditional termination
   deriving Show

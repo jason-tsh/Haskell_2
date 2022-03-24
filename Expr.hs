@@ -38,7 +38,7 @@ eval vars (Greater x y) = case (eval vars x, eval vars y) of
                             (Just xval, Just yval) -> Just (Bool $ xval > yval)
                             _ -> Nothing
 eval vars (GreaterEqual x y) = case eval vars (Or (Equal x y) (Greater x y)) of
-                                 Just (Bool True) -> Just (Bool True)
+                                 Just (Bool val) -> Just (Bool val)
                                  _ -> Nothing
 eval vars (Less x y) = case eval vars (GreaterEqual x y) of
                          Just (Bool val) -> Just (Bool $ not val)

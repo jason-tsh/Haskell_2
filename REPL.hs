@@ -15,7 +15,7 @@ import System.Directory
 data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool,
                        current :: FuncData, funcList :: [FuncData]}
 
-data FuncData = FuncData { name :: Name, argv :: [Expr], body :: [Command], parent :: [FuncData], children :: [FuncData]}
+data FuncData = FuncData { name :: Name, argv :: [Name], body :: [Command], parent :: [FuncData], children :: [FuncData]}
      deriving Show
 
 initLState :: LState
@@ -47,7 +47,7 @@ recurSearch name' (x:xs) = case iterSearch name' (x : children x) of
                              Just result -> Just result
                              Nothing -> recurSearch name' (parent x)
 
--- Check if there is a function with the same name inside the sub-tree
+-- Check if there is a function with the same name inside the same level of sub-tree
 iterSearch :: Name -> [FuncData] -> Maybe FuncData
 iterSearch name' [] = Nothing
 iterSearch name' (x:xs) = if name' == name x then Just x else iterSearch name' xs
@@ -74,14 +74,14 @@ checkScope st (x:xs) = case x of
                          (While cond cmd) -> condCheck cond $ blockCheck cmd
                          (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
                          (For init cond after cmd) -> condCheck cond $ blockCheck (init ++ after ++ cmd)
-                         (Read file) -> checkScope st xs
-                         (SetFunc name argv cmd) -> blockCheck cmd
-                         (Func name argv) -> checkScope st xs
-                         Quit -> checkScope st xs
+                         (SetFunc name argv cmd) -> blockCheck (funcInit argv ++ cmd)
+                         _ -> checkScope st xs -- Read, Func & Quit commands
                          where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
                                                         Just val -> check
                                                         _ -> False
+                               funcInit [] = []
+                               funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs
 
 checkError :: LState -> LState -> InputT (StateT LState IO) ()
 checkError st st' = if errorFlag st'
@@ -96,7 +96,6 @@ abort st msg = do outputStrLn msg
 clear :: StateT LState IO ()
 clear = do st <- get
            put st {vars = filter (\var -> lst3 var <= scope st) (vars st), errorFlag = False}
-           return ()
 
 batch :: [Command] -> InputT (StateT LState IO) ()
 batch = foldr ((>>) . process) (return ())
@@ -110,7 +109,7 @@ process (Set var e) = do
                       Nothing -> scope st
      let go e = case eval (vars st) e of
                     Just val -> st {vars = updateVars var val varScope (vars st)}
-                    Nothing -> do st {errorFlag = True}
+                    Nothing -> st {errorFlag = True}
      let exit st = lift $ put st
      case e of
           Val (StrVal "input") -> do inp <- getInputLine "> "
@@ -125,8 +124,8 @@ process (Print e)
      = do st <- lift get
           if errorFlag st then return () else do
           case eval (vars st) e of
-                    Just val -> outputStrLn $ show val
-                    Nothing -> abort st "No entry/ valid result found"
+            Just val -> outputStrLn $ show val
+            Nothing -> abort st "No entry/ valid result found"
           -- Print the result of evaluation
 
 process (Cond cond x y)
@@ -146,16 +145,14 @@ process (Repeat acc cmd)
                                                     if errorFlag st'
                                                     then lift $ put st
                                                     else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
-          else abort st "**Some variables not in scope**"
+          else abort st "**Scope/ parse error**"
 
 process (While cond cmd)
      = do st <- lift get
           if errorFlag st then return () else do
-          process (Cond cond [Repeat 1 cmd] [])
-          st' <- lift get
-          if checkScope st' cmd
-          then Control.Monad.when (checkCond st' cond) $ process (While cond cmd)
-          else abort st "**Some variables not in scope**"
+          if checkScope st cmd
+          then process (Cond cond [Repeat 1 cmd, While cond cmd] [])
+          else abort st "**Scope/ parse error**"
           st' <- lift get
           checkError st st'
 
@@ -168,8 +165,8 @@ process (For init cond after cmd)
           batch init
           st' <- lift get
           if checkScope st' (init ++ Cond cond [Quit] [Quit] : after ++ cmd)
-          then Control.Monad.when (checkCond st' cond) $ process (While cond (cmd ++ after))
-          else abort st "**Some variables not in scope**"
+          then process (Cond cond [While cond (cmd ++ after)] [])
+          else abort st "**Scope/ parse error**"
           st' <- lift get
           checkError st st'
 
@@ -180,15 +177,14 @@ process (Read file)
             "input" -> do inp <- getInputLine "File: "
                           process (Read $ fromMaybe "" inp)
             _ -> do exist <- lift $ lift $ doesFileExist file
-                    if exist then do content <- lift $ lift $ readFile file
-                                     case parse pBatch content of
-                                       [(list, "")] -> do st <- lift get
-                                                          if checkScope st list
-                                                          then batch list
-                                                          else abort st "**Some variables not in scope**"
-                                       _ -> abort st "File parse error"
-                    else do outputStrLn "File does not exist"
-                            lift $ put st {errorFlag = True}
+                    if exist 
+                    then do content <- lift $ lift $ readFile file
+                            case parse pBatch content of
+                              [(list, "")] -> do st <- lift get
+                                                 if checkScope st list then batch list
+                                                                       else abort st "**Scope/ parse error**"
+                              _ -> abort st "File parse error"
+                    else abort st "File does not exist"
 
 process (SetFunc name' argv cmd)
      = do st <- lift get
@@ -198,13 +194,13 @@ process (SetFunc name' argv cmd)
           then case name func of
                  "" -> do if name' `elem` map name (funcList st)
                           then abort st "**Duplicated function name**"
-                          else lift $ put st {funcList = FuncData name' argv cmd [] []: funcList st}
+                          else lift $ put st {funcList = FuncData name' argv cmd [] [] : funcList st}
                  _ -> do if name' `elem` map name (funcList st) && uniqueFunc name' [func]
                          then abort st "**Duplicated function name**"
                          else do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
                                  lift $ put st {current = func {children = FuncData name' argv cmd [func] [] : children func},
                                                 funcList = root : filter (\x -> name x /= name root) (funcList st)}
-          else abort st "**Some variables not in scope**"
+          else abort st "**Scope/ parse error**"
 
 process (Func name' argv')
      = do st <- lift get
@@ -220,8 +216,8 @@ process (Func name' argv')
           st' <- lift get
           checkError st st'
      where zipCommand [] [] st = []
-           zipCommand (x:xs) (y:ys) st = case (x, eval (vars st) y) of
-                                        (Get x', Just y') -> Set x' (Val y') : zipCommand xs ys st
+           zipCommand (x:xs) (y:ys) st = case eval (vars st) y of
+                                        Just y' -> Set x (Val y') : zipCommand xs ys st
                                         _ -> []
 
 process Quit = lift $ lift exitSuccess

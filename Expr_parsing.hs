@@ -27,7 +27,7 @@ pFunc :: Parser Command
 pFunc = do symbol "void"
            name <- many1 letter
            symbol "("
-           argv <- pHead pExpr
+           argv <- pHead $ many1 letter
            symbol ")"
            SetFunc name argv <$> pBody
          ||| do name <- many1 letter

@@ -21,11 +21,11 @@ while (fst < 10) {--not a good exit condition I know
     }
 }
 
-void test(a,b,c) {
-    void testa (a,b,c) {}
-    x = 1
-    x = 2
-    print x
+void test(a) {
+    void testa () {print "hi"} --Comment
+    testa()
+    print a
 }
 
-test(a,b,c)
+test(1 + 2)
+testa()
