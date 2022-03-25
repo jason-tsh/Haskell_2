@@ -2,8 +2,7 @@ module Expr where
 
 import Data_type
 import Expr_parsing
-import GHC.Float (int2Double)
-import GHC.Real (div)
+import GHC.Float
 
 eval :: [(Name, Value, Int)] -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate

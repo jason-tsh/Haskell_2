@@ -1,7 +1,6 @@
 module Data_type where
 
-import GHC.Float (int2Double)
-import GHC.Real (div)
+import GHC.Float
 
 -- Commands that will alter the state of the program
 data Command = Set Name Expr -- assign an expression to a variable name

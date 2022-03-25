@@ -15,17 +15,12 @@ import System.Directory
 data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool,
                        current :: FuncData, funcList :: [FuncData]}
 
-data FuncData = FuncData { name :: Name, argv :: [Name], body :: [Command], parent :: [FuncData], children :: [FuncData]}
-     deriving Show
+data FuncData = FuncData { name :: Name, argv :: [Name], body :: [Command],
+                           parent :: [FuncData], children :: [FuncData]}
 
-initLState :: LState
 initLState = LState 0 [] False initFunc []
 
-initFunc :: FuncData
 initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be none
-
-strVal val = Val $ StrVal val
-boolVal val = Val $ Bool val
 
 -- Update the list by add/ update the value of the corresponding variable
 updateVars :: Name -> Value -> Int -> [(Name, Value, Int)] -> [(Name, Value, Int)]
@@ -34,6 +29,10 @@ updateVars name val scope vars = (name, val, scope) : dropVar name vars
 -- Update the list by removing the corresponding variable
 dropVar :: Name -> [(Name, Value, Int)] -> [(Name, Value, Int)]
 dropVar name = filter (\var -> fst3 var /= name)
+
+-- Update the list by removing the local variables
+dropVar' :: LState -> LState -> [(Name, Value, Int)]
+dropVar' st st' = filter (\var -> lst3 var <= scope st) (vars st')
 
 -- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
 uniqueFunc :: Name -> [FuncData] -> Bool
@@ -58,7 +57,7 @@ saveFunc tar [] = tar
 saveFunc tar (dest:rest) = saveFunc dest {children = tar : children dest} (parent dest)
 
 checkCond :: LState -> Expr -> Bool
-checkCond st cond = case eval (vars st) (If cond (boolVal True) (boolVal True)) of
+checkCond st cond = case eval (vars st) (If cond (Val $ Bool True) (Val $ Bool True)) of
                       Just (Bool bool) -> bool
                       _ -> False
 
@@ -84,10 +83,7 @@ checkScope st (x:xs) = case x of
                                funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs
 
 checkError :: LState -> LState -> InputT (StateT LState IO) ()
-checkError st st' = if errorFlag st'
-                    then lift $ put st
-                    else lift $ put st' {scope = scope st, vars = filter (\var -> lst3 var <= scope st) (vars st'),
-                                         current = current st}
+checkError st st' = if errorFlag st' then lift $ put st else lift $ put st' {scope = scope st, vars = dropVar' st st', current = current st}
 
 abort :: LState -> String -> InputT (StateT LState IO) ()
 abort st msg = do outputStrLn msg
@@ -95,7 +91,7 @@ abort st msg = do outputStrLn msg
 
 clear :: StateT LState IO ()
 clear = do st <- get
-           put st {vars = filter (\var -> lst3 var <= scope st) (vars st), errorFlag = False}
+           put st {vars = dropVar' st st, errorFlag = False}
 
 batch :: [Command] -> InputT (StateT LState IO) ()
 batch = foldr ((>>) . process) (return ())
@@ -107,18 +103,18 @@ process (Set var e) = do
      let varScope = case extract var (vars st) of
                       Just (var, val, vScope) -> vScope
                       Nothing -> scope st
-     let go e = case eval (vars st) e of
-                    Just val -> st {vars = updateVars var val varScope (vars st)}
-                    Nothing -> st {errorFlag = True}
+     let set e = case eval (vars st) e of
+                   Just val -> st {vars = updateVars var val varScope (vars st)}
+                   Nothing -> st {errorFlag = True}
      let exit st = lift $ put st
      case e of
           Val (StrVal "input") -> do inp <- getInputLine "> "
                                      case parse pExpr $ fromMaybe "" inp of
-                                        [(e',"")] -> exit $ go e'
+                                        [(e',"")] -> exit $ set e'
                                         _ -> abort st "Invalid input, action aborted"
           _ -> do Control.Monad.when (isNothing (eval (vars st) e)) $
                                      outputStrLn "Referred data not found, action aborted"
-                  exit $ go e
+                  exit $ set e
 
 process (Print e)
      = do st <- lift get
@@ -140,11 +136,10 @@ process (Repeat acc cmd)
           if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
           if checkScope st {scope = scope st + 1} cmd
-          then if acc > 0 && not (null cmd) then batch cmd >> process (Repeat (acc - 1) cmd)
-                                            else do st' <- lift get
-                                                    if errorFlag st'
-                                                    then lift $ put st
-                                                    else lift $ put st {vars = filter (\var -> lst3 var <= scope st) (vars st')}
+          then if acc > 0 && not (null cmd) 
+               then batch cmd >> process (Repeat (acc - 1) cmd)
+               else do st' <- lift get
+                       if errorFlag st' then lift $ put st else lift $ put st {vars = dropVar' st st'}
           else abort st "**Scope/ parse error**"
 
 process (While cond cmd)
@@ -205,14 +200,14 @@ process (SetFunc name' argv cmd)
 process (Func name' argv')
      = do st <- lift get
           if errorFlag st then return () else do
-             let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
-             case func of
-               Just x -> if length argv' == length (argv x)
-                         then do lift $ put st {scope = scope st + 1, current = x}
-                                 batch $ zipCommand (argv x) argv' st
-                                 batch (body x)
-                         else do abort st "**Invalid number of arguments**"
-               Nothing -> do abort st "**Function not found**"
+          let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
+          case func of
+            Just x -> if length argv' == length (argv x)
+                      then do lift $ put st {scope = scope st + 1, current = x}
+                              batch $ zipCommand (argv x) argv' st
+                              batch (body x)
+                      else abort st "**Invalid number of arguments**"
+            Nothing -> abort st "**Function not found**"
           st' <- lift get
           checkError st st'
      where zipCommand [] [] st = []
