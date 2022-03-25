@@ -14,7 +14,6 @@ data Command = Set Name Expr -- assign an expression to a variable name
              | SetFunc Name [Name] [Command] -- Set function
              | Func Name [Expr] -- Apply function (will create a local scope)
              | Quit -- Unconditional termination
-  deriving Show
 
 -- Expressions that will collapse into a value
 data Expr = Val Value -- Literal
@@ -39,7 +38,6 @@ data Expr = Val Value -- Literal
           | Not Expr
           | And Expr Expr
           | Or Expr Expr
-  deriving Show
 
 data Value = NumVal Numeric | StrVal String | Bool Bool -- Bool is internally used
   deriving Ord

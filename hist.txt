@@ -1,3 +1,4 @@
+read input
 b()
 void b() {quit}
 void a() {quit}
