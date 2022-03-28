@@ -20,15 +20,15 @@ pCommand = pFunc ||| pCond ||| pSet
             ||| do symbol "quit" >> return Quit
 
 pFunc :: Parser Command
-pFunc = do name <- symbol "void" *> many1 letter
-           argv <- symbol "(" *> pHead (many1 letter) <* symbol ")"
+pFunc = do name <- symbol "void" *> many1 (letter ||| char '_')
+           argv <- symbol "(" *> pHead (many1 (letter ||| char '_')) <* symbol ")"
            SetFunc name argv <$> pBody
-         ||| do name <- many1 letter
+         ||| do name <- many1 (letter ||| char '_')
                 argv <- symbol "(" *> pHead pExpr <* symbol ")"
                 return $ Func name argv
 
 pSet :: Parser Command
-pSet = do t <- many1 letter
+pSet = do t <- many1 (letter ||| char '_')
           Set t <$> (symbol "=" *> pExpr)
 
 pCond :: Parser Command
@@ -96,7 +96,7 @@ pNumOp = pArith ||| pTerm
 pCast :: Parser Expr
 pCast = do symbol "toInt("
            do ToNum <$> (char '\"' *> pNum <* char '\"' <* symbol ")")
-            ||| do ToNum . Get <$> (many1 letter <* symbol ")")-- variable
+            ||| do ToNum . Get <$> (many1 (letter ||| char '_') <* symbol ")")-- variable
          ||| do ToString <$> (symbol "toString(" *> pExpr <* symbol ")")
 
 pArith :: Parser Expr
@@ -115,7 +115,7 @@ pNum = pFloat ||| pInt
 pVar :: Parser Expr
 pVar = do symbol "input"
           return (Val $ StrVal "input") -- input keyword for user input
-        ||| do Get <$> (many1 letter <* space) -- variable
+        ||| do Get <$> (many1 (letter ||| char '_') <* space) -- variable
 
 pStr :: Parser Expr
 pStr = Val . StrVal <$> (char '\"' *> many (sat (/= '\"')) <* char '\"' <* space) -- string (empty string is possible)
