@@ -5,7 +5,7 @@ import Data_type
 
 pBatch :: Parser [Command]
 pBatch = do many pComment
-            do fst <- space *> many1 pCommand <* space
+            do fst <- many1 (space *> pCommand <* space)
                rest <- pBatch
                return (fst ++ rest)
              ||| return []
@@ -74,10 +74,9 @@ pBool = do fst <- pNumOp
            do Equal fst <$> (symbol "==" *> pNumOp)
             ||| do NotEqual fst <$> (symbol "/=" *> pNumOp)
             ||| do GreaterEqual fst <$> (symbol ">=" *> pNumOp)
-            ||| do Greater fst <$> (symbol ">=" *> pNumOp)
+            ||| do Greater fst <$> (symbol ">" *> pNumOp)
             ||| do LessEqual fst <$> (symbol "<=" *> pNumOp)
             ||| do Less fst <$> (symbol "<" *> pNumOp)
-            ||| return fst
 
 pExpr :: Parser Expr
 pExpr = do Abs <$> (symbol "abs" *> pNum) -- haskell syntax

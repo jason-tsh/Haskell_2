@@ -21,7 +21,7 @@ commandList = ["input", "print", "if", "then", "else",
                "++", "toNum", "toStr"]
 
 completeFunc :: CompletionFunc (StateT LState IO)
-completeFunc = completeWord Nothing "\t" generator
+completeFunc = completeWord Nothing " \t" generator
 
 generator :: String -> StateT LState IO [Completion] -- Get list of possible words
 generator str = do st <- get
