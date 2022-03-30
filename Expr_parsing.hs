@@ -94,10 +94,10 @@ pNumOp :: Parser Expr
 pNumOp = pArith ||| pTerm
 
 pCast :: Parser Expr
-pCast = do symbol "toNum("
+pCast = do symbol "toNum" <* symbol "("
            do ToNum <$> (char '\"' *> pNum <* char '\"' <* symbol ")")
             ||| do ToNum . Get <$> (many1 (letter ||| char '_') <* symbol ")")-- variable
-         ||| do ToString <$> (symbol "toString(" *> pExpr <* symbol ")")
+         ||| do ToString <$> (symbol "toStr" *> symbol "(" *> pExpr <* symbol ")")
 
 pArith :: Parser Expr
 pArith = do t <- pTerm
@@ -113,8 +113,7 @@ pNum :: Parser Expr
 pNum = pFloat ||| pInt
 
 pVar :: Parser Expr
-pVar = do symbol "input"
-          return (Val $ StrVal "input") -- input keyword for user input
+pVar = do Val . StrVal <$> symbol "input" -- input keyword for user input
         ||| do Get <$> (many1 (letter ||| char '_') <* space) -- variable
 
 pStr :: Parser Expr
