@@ -19,7 +19,7 @@ eval vars (Pow x y) = numOp2 vars doPow x y
 eval vars (ToNum x) = case x of
                         Get var -> case lookup3 var vars of
                                      Just (StrVal val) -> Just $ NumVal $ Int $ toInt val
-                                     _ -> Nothing -- the main thing should be variable casting (WIP)
+                                     _ -> Nothing
                         _ -> eval vars x
 eval vars (ToString x) = Just $ StrVal $ format $ maybe "*Invalid/ out-of-scope expression*" show (eval vars x)
 eval vars (Concat x y) = Just $ StrVal $ format (go x) ++ format (go y)

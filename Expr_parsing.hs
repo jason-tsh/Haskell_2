@@ -94,7 +94,7 @@ pNumOp :: Parser Expr
 pNumOp = pArith ||| pTerm
 
 pCast :: Parser Expr
-pCast = do symbol "toInt("
+pCast = do symbol "toNum("
            do ToNum <$> (char '\"' *> pNum <* char '\"' <* symbol ")")
             ||| do ToNum . Get <$> (many1 (letter ||| char '_') <* symbol ")")-- variable
          ||| do ToString <$> (symbol "toString(" *> pExpr <* symbol ")")
