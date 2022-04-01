@@ -26,7 +26,7 @@ initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be
 updateVars :: Name -> Value -> Int -> Tree Name Value Int -> Tree Name Value Int
 updateVars name value scope Leaf = Node Leaf name value scope Leaf
 updateVars name value scope (Node lt nName nValue nScope rt)
-        | nName == name = Node lt name value scope rt
+        | nName == name = Node lt name value nScope rt
         | name < nName = Node (updateVars name value scope lt) nName nValue nScope rt
         | otherwise = Node lt nName nValue nScope (updateVars name value scope rt)
 
