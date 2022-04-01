@@ -52,11 +52,17 @@ tree2List :: Tree Name Value Int -> [(Name, Value, Int)]
 tree2List Leaf = []
 tree2List (Node lt nName nValue nScope rt) = [(nName, nValue, nScope)] ++ tree2List lt ++ tree2List rt
 
+list2Tree :: Tree Name Value Int -> [(Name, Value, Int)] -> Tree Name Value Int
+list2Tree tree [] = tree
+list2Tree tree (x:xs) =  case x of
+                           (name, value, scope) -> list2Tree (updateVars name value scope tree) xs
+
+
 -- Update the list by removing the local variables
 {-Take old state and new state and go through if new variables have greater scope
     than old state they must be deleted -}
 dropVar' :: LState -> LState -> Tree Name Value Int
-dropVar' st st' = filter (\var -> lst3 var <= scope st) (vars st')
+dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
 
 
 -- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
@@ -161,7 +167,7 @@ process (Repeat acc cmd)
           if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
           if checkScope st {scope = scope st + 1} cmd
-          then if acc > 0 && not (null cmd) 
+          then if acc > 0 && not (null cmd)
                then batch cmd >> process (Repeat (acc - 1) cmd)
                else do st' <- lift get
                        if errorFlag st' then lift $ put st else lift $ put st {vars = dropVar' st st'}
@@ -197,7 +203,7 @@ process (Read file)
             "input" -> do inp <- getInputLine "File: "
                           process (Read $ fromMaybe "" inp)
             _ -> do exist <- lift $ lift $ doesFileExist file
-                    if exist 
+                    if exist
                     then do content <- lift $ lift $ readFile file
                             case parse pBatch content of
                               [(list, "")] -> do st <- lift get
