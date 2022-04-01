@@ -55,10 +55,8 @@ tree2List (Node lt nName nValue nScope rt) = [(nName, nValue, nScope)] ++ tree2L
 list2Tree :: Tree Name Value Int -> [(Name, Value, Int)] -> Tree Name Value Int
 list2Tree = foldl (\ tree x -> updateVars (fst3 x) (snd3 x) (lst3 x) tree)
 
-
 -- Update the list by removing the local variables
-{-Take old state and new state and go through if new variables have greater scope
-    than old state they must be deleted -}
+-- Take the old new state and build a new tree without the local variables by comparing their scopes
 dropVar' :: LState -> LState -> Tree Name Value Int
 dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
 
@@ -251,7 +249,6 @@ process Quit = lift $ lift exitSuccess
 -- This reads and parses the input using the pCommand parser, and calls
 -- 'process' to process the command.
 -- 'process' will call 'repl' when done, so the system loops.
-
 repl :: InputT (StateT LState IO) ()
 repl = do inp <- getInputLine "> "
           case parse pCommand $ fromMaybe "" inp of
