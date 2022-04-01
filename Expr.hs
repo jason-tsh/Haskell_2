@@ -4,7 +4,7 @@ import Data_type
 import Expr_parsing
 import GHC.Float
 
-eval :: [(Name, Value, Int)] -> -- Variable name to value mapping
+eval :: Tree Name Value Int -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
         Maybe Value -- Result (if no errors such as missing variables)
 eval vars (Get x) = lookup3 x vars
@@ -55,12 +55,12 @@ eval vars (Or x y) = case (eval vars x, eval vars y) of
                        (Just (Bool xval), Just (Bool yval)) -> Just (Bool $ xval || yval)
                        _ -> Nothing
 
-numOp :: [(Name, Value, Int)] -> (Numeric -> Numeric) -> Expr -> Maybe Value
+numOp :: Tree Name Value Int -> (Numeric -> Numeric) -> Expr -> Maybe Value
 numOp vars f x = case eval vars x of
                      Just (NumVal xval) -> Just $ NumVal (f xval)
                      _ -> Nothing
 
-numOp2 :: [(Name, Value, Int)] -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
+numOp2 :: Tree Name Value Int -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
 numOp2 vars f x y = case (eval vars x, eval vars y) of
                      (Just (NumVal xval), Just (NumVal yval)) -> Just $ NumVal (f xval yval)
                      _ -> Nothing

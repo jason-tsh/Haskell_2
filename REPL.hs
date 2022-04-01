@@ -39,14 +39,14 @@ deleteMax (Node lt name value scope rt) = (x, y, z, Node lt name value scope rt'
 -- Update the list by removing the corresponding variable
 dropVar :: Name -> Tree Name Value Int -> Tree Name Value Int
 dropVar name Leaf = Leaf
-dropVar name (Node lt nName nValue nScope rt) | name < nName = Node (dropVar name lt) nName nValue nScope rt
-                                             | name > nName = Node lt nName nValue nScope (dropVar name rt)
-                                             | name == nName = 
-                case (lt, rt) of
-                    (Leaf, _) -> rt
-                    (_, Leaf) -> lt
-                    (Node _ _ _ _ _, _) -> Node lt' newName newValue newScope rt
-                        where (newName, newValue, newScope, lt') = deleteMax lt
+dropVar name (Node lt nName nValue nScope rt)
+     | name < nName = Node (dropVar name lt) nName nValue nScope rt
+     | name > nName = Node lt nName nValue nScope (dropVar name rt)
+     | name == nName = case (lt, rt) of
+                         (Leaf, _) -> rt
+                         (_, Leaf) -> lt
+                         (Node _ _ _ _ _, _) -> Node lt' newName newValue newScope rt
+                           where (newName, newValue, newScope, lt') = deleteMax lt
 
 -- Update the list by removing the local variables
 {-Take old state and new state and go through if new variables have greater scope

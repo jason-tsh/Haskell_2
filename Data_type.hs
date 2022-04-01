@@ -39,8 +39,7 @@ data Expr = Val Value -- Literal
           | And Expr Expr
           | Or Expr Expr
 
-data Tree n v s = Leaf
-               | Node (Tree n v s) n v s (Tree n v s)
+data Tree name value scope = Leaf | Node (Tree name value scope) name value scope (Tree name value scope)
      deriving (Eq, Ord)
 
 
