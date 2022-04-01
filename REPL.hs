@@ -62,11 +62,15 @@ list2Tree tree (x:xs) =  case x of
 {-Take old state and new state and go through if new variables have greater scope
     than old state they must be deleted -}
 dropVar' :: LState -> LState -> Tree Name Value Int
-<<<<<<< HEAD
 dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
-=======
-dropVar' st st' = map filter (\var -> lst3 var <= scope st) (tree2List vars st')
->>>>>>> 47820640fff548d7fa2ceec2e8dce4b1343d82b1
+
+
+
+-- Update the list by removing the local variables
+{-Take old state and new state and go through if new variables have greater scope
+    than old state they must be deleted -}
+dropVar' :: LState -> LState -> Tree Name Value Int
+dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
 
 
 -- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
