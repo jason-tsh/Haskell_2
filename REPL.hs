@@ -53,9 +53,7 @@ tree2List Leaf = []
 tree2List (Node lt nName nValue nScope rt) = [(nName, nValue, nScope)] ++ tree2List lt ++ tree2List rt
 
 list2Tree :: Tree Name Value Int -> [(Name, Value, Int)] -> Tree Name Value Int
-list2Tree tree [] = tree
-list2Tree tree (x:xs) =  case x of
-                           (name, value, scope) -> list2Tree (updateVars name value scope tree) xs
+list2Tree = foldl (\ tree x -> updateVars (fst3 x) (snd3 x) (lst3 x) tree)
 
 
 -- Update the list by removing the local variables
