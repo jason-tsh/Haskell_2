@@ -62,12 +62,12 @@ eval vars (Or x y) = case (eval vars x, eval vars y) of
 numOp :: Tree Name Value Int -> (Numeric -> Numeric) -> Expr -> Either Value String
 numOp vars f x = case eval vars x of
                      Left (NumVal xval) -> Left $ NumVal (f xval)
-                     _ -> Right boolError
+                     _ -> Right unsupported
 
 numOp2 :: Tree Name Value Int -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Either Value String
 numOp2 vars f x y = case (eval vars x, eval vars y) of
                      (Left (NumVal xval), Left (NumVal yval)) -> Left $ NumVal (f xval yval)
-                     _ -> Right boolError
+                     _ -> Right unsupported
 
 doDivision :: Numeric -> Numeric -> Numeric
 doDivision x y = case (x, y) of

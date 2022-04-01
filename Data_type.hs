@@ -104,6 +104,7 @@ instance Ord Numeric where
 type Name = String -- Alias
 
 --This part stores the common possible error messages in the program
+unsupported = "**unsupported input type detected**"
 boolError = "**Non-deterministic condition, action aborted**"
 scopeError = "**Invalid/ out-of-scope expression**"
 emptyResult = "**No matching results**"

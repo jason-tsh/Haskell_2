@@ -79,7 +79,7 @@ pBool = do fst <- pNumOp
             ||| do Less fst <$> (symbol "<" *> pNumOp)
 
 pExpr :: Parser Expr
-pExpr = do Abs <$> (symbol "abs" *> pNum) -- haskell syntax
+pExpr = do Abs <$> (symbol "abs" *> pNumOp ||| pVar) -- haskell syntax
          ||| do cond <- symbol "if" *> pBools
                 true <- symbol "then" *> pExpr
                 symbol "else" >> If cond true <$> pExpr
