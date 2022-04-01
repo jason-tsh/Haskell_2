@@ -48,6 +48,10 @@ dropVar name (Node lt nName nValue nScope rt)
                          (Node _ _ _ _ _, _) -> Node lt' newName newValue newScope rt
                            where (newName, newValue, newScope, lt') = deleteMax lt
 
+tree2List :: Tree Name Value Int -> [(Name, Value, Int)]
+tree2List Leaf = []
+tree2List (Node lt nName nValue nScope rt) = [(nName, nValue, nScope)] ++ tree2List lt ++ tree2List rt
+
 -- Update the list by removing the local variables
 {-Take old state and new state and go through if new variables have greater scope
     than old state they must be deleted -}
