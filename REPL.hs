@@ -27,29 +27,9 @@ initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be
 updateVars :: Name -> Value -> Int -> Tree Name Value Int -> Tree Name Value Int
 updateVars name value scope Leaf = Node Leaf name value scope Leaf
 updateVars name value scope (Node lt nName nValue nScope rt)
-        | nName == name = Node lt name value nScope rt
-        | name < nName = Node (updateVars name value scope lt) nName nValue nScope rt
-        | otherwise = Node lt nName nValue nScope (updateVars name value scope rt)
-
---
-deleteMax :: Tree Name Value Int -> (Name, Value, Int, Tree Name Value Int)
-deleteMax Leaf = error "Empty Tree"
-deleteMax (Node lt name value scope Leaf) = (name, value, scope, lt)
-deleteMax (Node lt name value scope rt) = (x, y, z, Node lt name value scope rt')
-    where (x,y,z, rt') = deleteMax rt
-
--- Update the list by removing the corresponding variable
---https://www.seas.upenn.edu/~cis552/12fa/lectures/stub/BST.html
-dropVar :: Name -> Tree Name Value Int -> Tree Name Value Int
-dropVar name Leaf = Leaf
-dropVar name (Node lt nName nValue nScope rt)
-     | name < nName = Node (dropVar name lt) nName nValue nScope rt
-     | name > nName = Node lt nName nValue nScope (dropVar name rt)
-     | name == nName = case (lt, rt) of
-                         (Leaf, _) -> rt
-                         (_, Leaf) -> lt
-                         (Node {}, _) -> Node lt' newName newValue newScope rt
-                           where (newName, newValue, newScope, lt') = deleteMax lt
+     | nName == name = Node lt name value nScope rt
+     | name < nName = Node (updateVars name value scope lt) nName nValue nScope rt
+     | otherwise = Node lt nName nValue nScope (updateVars name value scope rt)
 
 tree2List :: Tree Name Value Int -> [(Name, Value, Int)]
 tree2List Leaf = []
@@ -60,8 +40,8 @@ list2Tree = foldl (\ tree x -> updateVars (fst3 x) (snd3 x) (lst3 x) tree)
 
 -- Update the list by removing the local variables
 -- Take the old new state and build a new tree without the local variables by comparing their scopes
-dropVar' :: LState -> LState -> Tree Name Value Int
-dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
+dropVar :: LState -> LState -> Tree Name Value Int
+dropVar st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
 
 
 -- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
@@ -95,8 +75,9 @@ checkScope :: LState -> [Command] -> Bool
 checkScope st [] = True
 checkScope st (x:xs) = case x of
                          (Set var e) -> case eval (vars st) e of
-                                             Left val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
-                                             _ -> False
+                                          Left (StrVal "input") -> checkScope st {vars = updateVars var (NumVal (Int 0)) (scope st) (vars st)} xs
+                                          Left val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
+                                          _ -> False
                          (Print e) -> condCheck e $ checkScope st xs
                          (Cond cond x y) -> condCheck cond (blockCheck x) && condCheck cond (blockCheck y)
                          (Repeat acc cmd) -> blockCheck cmd
@@ -104,7 +85,7 @@ checkScope st (x:xs) = case x of
                          (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
                          (For init cond after cmd) -> condCheck cond $ blockCheck (init ++ after ++ cmd)
                          (SetFunc name argv cmd) -> blockCheck (funcInit argv ++ cmd)
-                         _ -> checkScope st xs -- Read, Func & Quit commands
+                         _ -> checkScope st xs -- Read,  SetFunc, Func & Quit commands
                          where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
                                                         Left val -> check
@@ -113,7 +94,7 @@ checkScope st (x:xs) = case x of
                                funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs
 
 updateState :: LState -> LState -> InputT (StateT LState IO) ()
-updateState st st' = if errorFlag st' then lift $ put st else lift $ put st' {scope = scope st, vars = dropVar' st st', current = current st}
+updateState st st' = if errorFlag st' then lift $ put st else lift $ put st' {scope = scope st, vars = dropVar st st', current = current st}
 
 abort :: LState -> String -> InputT (StateT LState IO) ()
 abort st msg = do outputStrLn msg
@@ -121,7 +102,7 @@ abort st msg = do outputStrLn msg
 
 clear :: StateT LState IO ()
 clear = do st <- get
-           put st {vars = dropVar' st st, errorFlag = False}
+           put st {vars = dropVar st st, errorFlag = False}
 
 batch :: [Command] -> InputT (StateT LState IO) ()
 batch = foldr ((>>) . process) (return ())
@@ -170,7 +151,7 @@ process (Repeat acc cmd)
           then if acc > 0 && not (null cmd)
                then batch cmd >> process (Repeat (acc - 1) cmd)
                else do st' <- lift get
-                       if errorFlag st' then lift $ put st else lift $ put st {vars = dropVar' st st'}
+                       if errorFlag st' then lift $ put st else lift $ put st {vars = dropVar st st'}
           else abort st scopeParseError
 
 process (While cond cmd)
