@@ -22,13 +22,12 @@ eval vars (ToNum x) = case x of
                                      Left val -> Left val
                                      _ -> Right emptyResult 
                         _ -> eval vars x
-eval vars (ToString x) = Left $ StrVal $ format $ case eval vars x of
-                                                    Left val -> show val
-                                                    Right _ -> scopeError
-eval vars (Concat x y) = Left $ StrVal $ format (go x) ++ format (go y)
-                          where go x = case eval vars x of
-                                         Left val -> show val
-                                         Right _ -> scopeError
+eval vars (ToString x) = case eval vars x of
+                           Left val -> Left $ StrVal $ format $ show val
+                           Right _ -> Right scopeError
+eval vars (Concat x y) = case (eval vars x, eval vars y) of
+                           (Left xval, Left yval) -> Left $ StrVal $ format (show xval) ++ format (show yval)
+                           _ -> Right scopeError
 eval vars (If cond x y) = case eval vars cond of
                             Left (Bool val) -> if val then eval vars x else eval vars y
                             _ -> Right boolError
