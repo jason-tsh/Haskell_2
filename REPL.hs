@@ -11,7 +11,6 @@ import qualified Control.Monad
 import System.Console.Haskeline
 import System.Exit
 import System.Directory
-import Type
 
 data LState = LState { scope :: Int, vars :: Tree Name Value Int, errorFlag :: Bool,
                        current :: FuncData, funcList :: [FuncData]}
