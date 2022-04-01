@@ -10,8 +10,8 @@ import System.Console.Haskeline
 settings :: Settings (StateT LState IO)
 settings = Settings {
             complete = completeFunc,
-            historyFile = Just "hist.txt",
-            autoAddHistory = True
+            historyFile = Just "hist.txt", --Where history will be saved
+            autoAddHistory = True --If history should automatically be written to the history file
             }
 
 commandList :: [String] -- keywords (some are not included)

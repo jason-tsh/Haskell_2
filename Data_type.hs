@@ -48,6 +48,7 @@ we can find data more efficiently-}
 data Tree name value scope = Leaf | Node (Tree name value scope) name value scope (Tree name value scope)
      deriving (Eq, Ord)
 
+--Used to represent the value stored by some variable or used in some calculation
 data Value = NumVal Numeric | StrVal String | Bool Bool -- Bool is internally used
   deriving Ord
 
@@ -66,9 +67,11 @@ instance Show Value where -- Remove internal identifiers
   show (StrVal val) = show val
   show (Bool val) = show val
 
+--Used to group Ints and Floats
 data Numeric = Int Int | Float Double -- "Automatic" casting
 
 --https://hackage.haskell.org/package/base-4.16.0.0/docs/GHC-Float.html#v:int2Double
+-- In the event that we try to do math with an Int and a Float, the result will be a Float.
 instance Num Numeric where
        (+) (Int x) (Int y) = Int (x + y)
        (+) (Int x) (Float y) = Float (int2Double x + y) --Implicit casting
