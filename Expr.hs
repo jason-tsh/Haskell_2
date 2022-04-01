@@ -110,7 +110,6 @@ lookup3 name (Node lt nName nValue nScope rt)
   | name < nName = lookup3 name lt
   | otherwise    = lookup3 name rt
 
-
 -- Get a particular tuple with 3 elements
 extract :: Ord a => a -> Tree a b c -> Either (a, b, c) String
 extract name Leaf =  Right emptyResult--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
