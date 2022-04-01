@@ -65,14 +65,6 @@ dropVar' :: LState -> LState -> Tree Name Value Int
 dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
 
 
-
--- Update the list by removing the local variables
-{-Take old state and new state and go through if new variables have greater scope
-    than old state they must be deleted -}
-dropVar' :: LState -> LState -> Tree Name Value Int
-dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
-
-
 -- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
 uniqueFunc :: Name -> [FuncData] -> Bool
 uniqueFunc name' [] = True
