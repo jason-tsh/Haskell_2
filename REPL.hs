@@ -56,14 +56,10 @@ tree2List Leaf = []
 tree2List (Node lt nName nValue nScope rt) = [(nName, nValue, nScope)] ++ tree2List lt ++ tree2List rt
 
 list2Tree :: Tree Name Value Int -> [(Name, Value, Int)] -> Tree Name Value Int
-list2Tree tree [] = tree
-list2Tree tree (x:xs) =  case x of
-                           (name, value, scope) -> list2Tree (updateVars name value scope tree) xs
-
+list2Tree = foldl (\ tree x -> updateVars (fst3 x) (snd3 x) (lst3 x) tree)
 
 -- Update the list by removing the local variables
-{-Take old state and new state and go through if new variables have greater scope
-    than old state they must be deleted -}
+-- Take the old new state and build a new tree without the local variables by comparing their scopes
 dropVar' :: LState -> LState -> Tree Name Value Int
 dropVar' st st' = list2Tree Leaf (filter (\var -> lst3 var <= scope st) (tree2List (vars st')))
 
@@ -133,7 +129,7 @@ batch = foldr ((>>) . process) (return ())
 process :: Command -> InputT (StateT LState IO) ()
 process (Set var e) = do
      st <- lift get
-     if errorFlag st then return () else do
+     if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
      let varScope = case extract var (vars st) of
                       Left (var, val, vScope) -> vScope
                       _ -> scope st
@@ -153,7 +149,7 @@ process (Set var e) = do
 
 process (Print e)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           case eval (vars st) e of
             Left val -> outputStrLn $ show val
             Right msg -> abort st msg
@@ -161,14 +157,14 @@ process (Print e)
 
 process (Cond cond x y)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           case eval (vars st) cond of
             Left (Bool bool) -> if bool then batch x else batch y
             _ -> abort st boolError
 
 process (Repeat acc cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           lift $ put st {scope = scope st + 1}
           if checkScope st {scope = scope st + 1} cmd
           then if acc > 0 && not (null cmd)
@@ -179,7 +175,7 @@ process (Repeat acc cmd)
 
 process (While cond cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           if checkScope st cmd
           then process (Cond cond [Repeat 1 cmd, While cond cmd] [])
           else abort st scopeParseError
@@ -190,7 +186,7 @@ process (DoWhile cond cmd) = process (Repeat 1 cmd) >> process (While cond cmd) 
 
 process (For init cond after cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           lift $ put st {scope = scope st + 1}
           batch init
           st' <- lift get
@@ -202,7 +198,7 @@ process (For init cond after cmd)
 
 process (Read file)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           case file of
             "input" -> do inp <- getInputLine "File: "
                           process (Read $ fromMaybe "" inp)
@@ -218,7 +214,7 @@ process (Read file)
 
 process (SetFunc name' argv cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           let func = current st
           if checkScope st [SetFunc name' argv cmd]
           then case name func of
@@ -234,7 +230,7 @@ process (SetFunc name' argv cmd)
 
 process (Func name' argv')
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
           case func of
             Left x -> if length argv' == length (argv x)
@@ -256,7 +252,6 @@ process Quit = lift $ lift exitSuccess
 -- This reads and parses the input using the pCommand parser, and calls
 -- 'process' to process the command.
 -- 'process' will call 'repl' when done, so the system loops.
-
 repl :: InputT (StateT LState IO) ()
 repl = do inp <- getInputLine "> "
           case parse pCommand $ fromMaybe "" inp of
