@@ -43,8 +43,7 @@ data Expr = Val Value -- Literal
 When adding things and deleting the functions will keep it like a binary search tree so 
 we can find data more efficiently-}
 data Tree name value scope = Leaf | Node (Tree name value scope) name value scope (Tree name value scope)
-     deriving (Eq, Ord)
-
+     deriving (Eq, Ord, Show)
 
 data Value = NumVal Numeric | StrVal String | Bool Bool -- Bool is internally used
   deriving Ord
@@ -105,9 +104,10 @@ instance Ord Numeric where
 type Name = String -- Alias
 
 --This part stores the common possible error messages in the program
-boolError = "Non-deterministic condition, action aborted"
+boolError = "**Non-deterministic condition, action aborted**"
 scopeError = "**Invalid/ out-of-scope expression**"
 emptyResult = "**No matching results**"
+emptyFunction = "**No matching functions**"
 duplicateFunc = "**Duplicated function name**"
 scopeParseError = "**Scope/ parse error**"
 previousError = "**Command skipped due to error in previous commands**"

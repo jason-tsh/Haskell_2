@@ -11,6 +11,7 @@ import qualified Control.Monad
 import System.Console.Haskeline
 import System.Exit
 import System.Directory
+import Type
 
 data LState = LState { scope :: Int, vars :: Tree Name Value Int, errorFlag :: Bool,
                        current :: FuncData, funcList :: [FuncData]}
@@ -71,14 +72,14 @@ uniqueFunc name' (x:xs) = name' `elem` map name (x : children x) && uniqueFunc n
 
 -- Check if there is a function with the same name inside the sub-tree & traverse through parent nodes till root (empty list)
 recurSearch :: Name -> [FuncData] -> Either FuncData String
-recurSearch name' [] = Right "No matching functions"
+recurSearch name' [] = Right emptyFunction
 recurSearch name' (x:xs) = case iterSearch name' (x : children x) of
                              Left result -> Left result
                              Right _ -> recurSearch name' (parent x)
 
 -- Check if there is a function with the same name inside the same level of sub-tree
 iterSearch :: Name -> [FuncData] -> Either FuncData String
-iterSearch name' [] = Right "No matching functions"
+iterSearch name' [] = Right emptyFunction
 iterSearch name' (x:xs) = if name' == name x then Left x else iterSearch name' xs
 
 -- Update the parent nodes & traverse through them till root (empty list)
@@ -141,7 +142,7 @@ process (Set var e) = do
           Val (StrVal "input") -> do inp <- getInputLine "> "
                                      case parse pExpr $ fromMaybe "" inp of
                                         [(e',"")] -> exit $ set e'
-                                        _ -> abort st "Invalid input, action aborted"
+                                        _ -> abort st "**Invalid input, action aborted**"
           _ -> do case eval (vars st) e of
                     Right msg -> outputStrLn msg
                     _ -> outputStr ""
@@ -209,8 +210,8 @@ process (Read file)
                               [(list, "")] -> do st <- lift get
                                                  if checkScope st list then batch list
                                                                        else abort st scopeParseError
-                              _ -> abort st "File parse error"
-                    else abort st "File does not exist"
+                              _ -> abort st "**File parse error**"
+                    else abort st "**File does not exist**"
 
 process (SetFunc name' argv cmd)
      = do st <- lift get
@@ -255,7 +256,9 @@ process Quit = lift $ lift exitSuccess
 repl :: InputT (StateT LState IO) ()
 repl = do inp <- getInputLine "> "
           case parse pCommand $ fromMaybe "" inp of
-            [(cmd, "")] -> process cmd -- Must parse entire input
-            _ -> outputStrLn "Parse error"
+            [(cmd, "")] -> do process cmd -- Must parse entire input
+                              st <- lift get
+                              outputStrLn $ show $ vars st
+            _ -> outputStrLn "**Parse error**"
           lift clear
           repl

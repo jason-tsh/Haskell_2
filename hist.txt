@@ -1,0 +1,10 @@
+read ./examples/vars.txt
+read ./examples/vars.txt
+read ./examples/vars.txt
+read ./example_programs/test.txt
+read ./example_programs/test.txt
+read ./example_programs/test.txt
+quit
+read ./example_programs/test.txt
+read ./example_programs/test.txt
+read ./example_programs/test.txt
