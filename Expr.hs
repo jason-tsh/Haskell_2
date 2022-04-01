@@ -6,9 +6,9 @@ import GHC.Float
 
 eval :: Tree Name Value Int -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
-        Maybe Value -- Result (if no errors such as missing variables)
+        Either Value String -- Result (if no errors such as missing variables)
 eval vars (Get x) = lookup3 x vars
-eval vars (Val x) = Just x -- for values, just give the value directly
+eval vars (Val x) = Left x -- for values, just give the value directly
 eval vars (Add x y) = numOp2 vars (+) x y
 eval vars (Sub x y) = numOp2 vars (-) x y
 eval vars (Mul x y) = numOp2 vars (*) x y
@@ -18,52 +18,56 @@ eval vars (Mod x y) = numOp2 vars doMod x y
 eval vars (Pow x y) = numOp2 vars doPow x y
 eval vars (ToNum x) = case x of
                         Get var -> case lookup3 var vars of
-                                     Just (StrVal val) -> Just $ NumVal $ Int $ toInt val
-                                     _ -> Nothing
+                                     Left (StrVal val) -> Left $ NumVal $ Int $ toInt val
+                                     _ -> Right emptyResult 
                         _ -> eval vars x
-eval vars (ToString x) = Just $ StrVal $ format $ maybe "*Invalid/ out-of-scope expression*" show (eval vars x)
-eval vars (Concat x y) = Just $ StrVal $ format (go x) ++ format (go y)
-                          where go x = maybe "*Invalid/ out-of-scope expression*" show (eval vars x)
+eval vars (ToString x) = Left $ StrVal $ format $ case eval vars x of
+                                                    Left val -> show val
+                                                    Right _ -> scopeError
+eval vars (Concat x y) = Left $ StrVal $ format (go x) ++ format (go y)
+                          where go x = case eval vars x of
+                                         Left val -> show val
+                                         Right _ -> scopeError
 eval vars (If cond x y) = case eval vars cond of
-                            Just (Bool val) -> if val then eval vars x else eval vars y
-                            _ -> Nothing
+                            Left (Bool val) -> if val then eval vars x else eval vars y
+                            _ -> Right boolError
 eval vars (Equal x y) = case (eval vars x, eval vars y) of
-                          (Just xval, Just yval) -> Just (Bool $ xval == yval)
-                          _ -> Nothing
+                          (Left xval, Left yval) -> Left (Bool $ xval == yval)
+                          _ -> Right boolError
 eval vars (NotEqual x y) = case eval vars (Equal x y) of
-                             Just (Bool val) -> Just (Bool $ not val)
-                             _ -> Nothing
+                             Left (Bool val) -> Left (Bool $ not val)
+                             _ -> Right boolError
 eval vars (Greater x y) = case (eval vars x, eval vars y) of
-                            (Just xval, Just yval) -> Just (Bool $ xval > yval)
-                            _ -> Nothing
+                            (Left xval, Left yval) -> Left (Bool $ xval > yval)
+                            _ -> Right boolError
 eval vars (GreaterEqual x y) = case eval vars (Or (Equal x y) (Greater x y)) of
-                                 Just (Bool val) -> Just (Bool val)
-                                 _ -> Nothing
+                                 Left (Bool val) -> Left (Bool val)
+                                 _ -> Right boolError
 eval vars (Less x y) = case eval vars (GreaterEqual x y) of
-                         Just (Bool val) -> Just (Bool $ not val)
-                         _ -> Nothing
+                         Left (Bool val) -> Left (Bool $ not val)
+                         _ -> Right boolError
 eval vars (LessEqual x y) = case eval vars (Greater x y) of
-                              Just (Bool val) -> Just (Bool $ not val)
-                              _ -> Nothing
+                              Left (Bool val) -> Left (Bool $ not val)
+                              _ -> Right boolError
 eval vars (Not x) = case eval vars x of
-                      Just (Bool val) -> Just (Bool $ not val)
-                      _ -> Nothing
+                      Left (Bool val) -> Left (Bool $ not val)
+                      _ -> Right boolError
 eval vars (And x y) = case (eval vars x, eval vars y) of
-                        (Just (Bool xval), Just (Bool yval)) -> Just (Bool $ xval && yval)
-                        _ -> Nothing
+                        (Left (Bool xval), Left (Bool yval)) -> Left (Bool $ xval && yval)
+                        _ -> Right boolError
 eval vars (Or x y) = case (eval vars x, eval vars y) of
-                       (Just (Bool xval), Just (Bool yval)) -> Just (Bool $ xval || yval)
-                       _ -> Nothing
+                       (Left (Bool xval), Left (Bool yval)) -> Left (Bool $ xval || yval)
+                       _ -> Right boolError
 
-numOp :: Tree Name Value Int -> (Numeric -> Numeric) -> Expr -> Maybe Value
+numOp :: Tree Name Value Int -> (Numeric -> Numeric) -> Expr -> Either Value String
 numOp vars f x = case eval vars x of
-                     Just (NumVal xval) -> Just $ NumVal (f xval)
-                     _ -> Nothing
+                     Left (NumVal xval) -> Left $ NumVal (f xval)
+                     _ -> Right boolError
 
-numOp2 :: Tree Name Value Int -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Maybe Value
+numOp2 :: Tree Name Value Int -> (Numeric -> Numeric -> Numeric) -> Expr -> Expr -> Either Value String
 numOp2 vars f x y = case (eval vars x, eval vars y) of
-                     (Just (NumVal xval), Just (NumVal yval)) -> Just $ NumVal (f xval yval)
-                     _ -> Nothing
+                     (Left (NumVal xval), Left (NumVal yval)) -> Left $ NumVal (f xval yval)
+                     _ -> Right boolError
 
 doDivision :: Numeric -> Numeric -> Numeric
 doDivision x y = case (x, y) of
@@ -98,20 +102,20 @@ format ('\'':s) | last s == '\'' = init s
                 | otherwise      = s
 format s                         = s
 
--- Get payload of a particular tuple with 3 elements, reduce the layers of Just
-lookup3 :: Name -> Tree Name Value Int -> Maybe Value --https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
-lookup3 name Leaf =  Nothing
+-- Get payload of a particular tuple with 3 elements, reduce the layers of Left
+lookup3 :: Name -> Tree Name Value Int -> Either Value String --https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+lookup3 name Leaf =  Right emptyResult
 lookup3 name (Node lt nName nValue nScope rt)
-  | nName == name = Just nValue
+  | nName == name = Left nValue
   | name < nName = lookup3 name lt
   | otherwise    = lookup3 name rt
 
 
 -- Get a particular tuple with 3 elements
-extract :: Ord a => a -> Tree a a a -> Maybe (a, a, a)
-extract name Leaf =  Nothing--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+extract :: Ord a => a -> Tree a b c -> Either (a, b, c) String
+extract name Leaf =  Right emptyResult--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
 extract name (Node lt nName nValue nScope rt)
-  | nName == name              = Just (nName, nValue, nScope)
+  | nName == name              = Left (nName, nValue, nScope)
   | name < nName               = extract name lt
   | otherwise                  = extract name rt
 

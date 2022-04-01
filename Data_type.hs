@@ -100,3 +100,9 @@ instance Ord Numeric where
   (>) x y = not $ x <= y
 
 type Name = String -- Alias
+
+boolError = "Non-deterministic condition, action aborted"
+scopeError = "**Invalid/ out-of-scope expression**"
+emptyResult = "**No matching results**"
+duplicateFunc = "**Duplicated function name**"
+scopeParseError = "**Scope/ parse error**"
