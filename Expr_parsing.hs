@@ -4,55 +4,55 @@ import Parsing
 import Data_type
 
 pBatch :: Parser [Command]
-pBatch = do many pComment
+pBatch = do many pComment -- comment before/ after command
             do fst <- many1 (space *> pCommand <* space)
                rest <- pBatch
                return (fst ++ rest)
-             ||| return []
+             ||| return [] -- empty loop/ function/ file
 
 pComment :: Parser ()
-pComment = symbol "--" *> many (sat (/= '\n')) *> space
+pComment = symbol "--" *> many (sat (/= '\n')) *> space -- ignoring comments
 
 pCommand :: Parser Command
 pCommand = pFunc ||| pCond ||| pSet
-            ||| do Read <$> (symbol "read" *> many (sat (/= '\"')))
+            ||| do Read <$> (symbol "read" *> many (sat (/= '\"'))) -- '"' is not supported
             ||| do Print <$> (symbol "print" *> pExpr)
             ||| do symbol "quit" >> return Quit
 
 pFunc :: Parser Command
-pFunc = do name <- symbol "void" *> many1 (letter ||| char '_')
-           argv <- symbol "(" *> pHead (many1 (letter ||| char '_')) <* symbol ")"
-           SetFunc name argv <$> pBody
-         ||| do name <- many1 (letter ||| char '_')
-                argv <- symbol "(" *> pHead pExpr <* symbol ")"
+pFunc = do name <- symbol "void" *> many1 (letter ||| char '_') -- setting function
+           argv <- symbol "(" *> pHead (many1 (letter ||| char '_')) <* symbol ")" -- arguments
+           SetFunc name argv <$> pBody -- body
+         ||| do name <- many1 (letter ||| char '_') -- applying function
+                argv <- symbol "(" *> pHead pExpr <* symbol ")" -- arguments
                 return $ Func name argv
 
 pSet :: Parser Command
-pSet = do t <- many1 (letter ||| char '_')
-          Set t <$> (symbol "=" *> pExpr)
+pSet = do t <- many1 (letter ||| char '_') -- variable name
+          Set t <$> (symbol "=" *> pExpr) -- value
 
 pCond :: Parser Command
-pCond = do cond <- symbol "if" *> symbol "(" *> pBools <* symbol ")"
-           true <- pBody
-           do Cond cond true <$> (symbol "else" *> pBody)
-            ||| return (Cond cond true [])
-         ||| do acc <- symbol "repeat" *> many1 digit
+pCond = do cond <- symbol "if" *> symbol "(" *> pBools <* symbol ")" -- non-empty list of boolean expressions
+           true <- pBody -- body of 'then' part
+           do Cond cond true <$> (symbol "else" *> pBody) -- body of 'else' part
+            ||| return (Cond cond true []) -- there can be no 'else' part
+         ||| do acc <- symbol "repeat" *> many1 digit -- only integer is accepted
                 Repeat (toInt acc) <$> pBody
-         ||| do cond <- symbol "while" *> symbol "(" *> pBools <* symbol ")"
+         ||| do cond <- symbol "while" *> symbol "(" *> pBools <* symbol ")" -- non-empty list of boolean expressions
                 While cond <$> pBody
          ||| do cmd <- symbol "do" *> pBody
-                cond <- symbol "while" *> symbol "(" *> pBools <* symbol ")"
+                cond <- symbol "while" *> symbol "(" *> pBools <* symbol ")" -- non-empty list of boolean expressions
                 return $ DoWhile cond cmd
-         ||| do init <- symbol "for" *> symbol "(" *> pHead pSet <* symbol ";"
-                cond <- pBools <* symbol ";"
-                after <- pHead pSet <* symbol ")"
+         ||| do init <- symbol "for" *> symbol "(" *> pHead pSet <* symbol ";" -- initialization
+                cond <- pBools <* symbol ";" -- non-empty list of boolean expressions
+                after <- pHead pSet <* symbol ")" -- afterthought
                 For init cond after <$> pBody
 
 pHead :: Parser a -> Parser [a]
 pHead p = do fst <- p
              rest <- many (symbol "," *> p)
-             return (fst:rest)
-           ||| return []
+             return (fst:rest) -- get a generic list
+           ||| return [] -- empty list
 
 pBody :: Parser [Command]
 pBody = do symbol "{" *> many pComment
@@ -60,14 +60,14 @@ pBody = do symbol "{" *> many pComment
               rest <- many (many (symbol ";") *> many pComment *> pCommand)
               many pComment *> symbol "}"
               return (fst:rest)
-            ||| do symbol "}" >> return []
+            ||| do symbol "}" >> return [] -- empty body
 
 pBools :: Parser Expr
-pBools = do Not <$> (symbol "!" *> symbol "(" *> (pBools ||| pUrgent pBools) <* symbol ")")
+pBools = do Not <$> (symbol "!" *> symbol "(" *> (pBools ||| pUrgent pBools) <* symbol ")") -- NOT operation
           ||| do fst <- pBool ||| pUrgent pBools
-                 do And fst <$> (symbol "&&" *> pBools)
-                  ||| do Or fst <$> (symbol "||" *> pBools)
-                  ||| return fst
+                 do And fst <$> (symbol "&&" *> pBools) -- AND operation
+                  ||| do Or fst <$> (symbol "||" *> pBools) -- OR operation
+                  ||| return fst -- accept one or more clauses
 
 pBool :: Parser Expr
 pBool = do fst <- pNumOp
@@ -79,24 +79,24 @@ pBool = do fst <- pNumOp
             ||| do Less fst <$> (symbol "<" *> pNumOp)
 
 pExpr :: Parser Expr
-pExpr = do Abs <$> (symbol "abs" *> pNumOp ||| pVar) -- Only variable names & arithmetic expression
-         ||| do cond <- symbol "if" *> pBools
-                true <- symbol "then" *> pExpr
-                symbol "else" >> If cond true <$> pExpr
+pExpr = do Abs <$> (symbol "abs" *> pNumOp ||| pVar) -- accetping only variable names & arithmetic expression
+         ||| do cond <- symbol "if" *> pBools -- condition
+                true <- symbol "then" *> pExpr -- 'true' part
+                symbol "else" >> If cond true <$> pExpr -- 'false' part (must not be empty)
          ||| pCast
          ||| pArith
               ||| do t <- pTerm
-                     do Concat t <$> (symbol "++" *> pExpr)
+                     Concat t <$> (symbol "++" *> pExpr)
                       ||| return t
 
 pNumOp :: Parser Expr
-pNumOp = pArith ||| pTerm
+pNumOp = pArith ||| pTerm -- NumOp -> number operation
 
 pCast :: Parser Expr
 pCast = do symbol "toNum" <* symbol "("
-           do ToNum <$> (char '\"' *> pNum <* char '\"' <* symbol ")")
+           do ToNum <$> (char '\"' *> pNum <* char '\"' <* symbol ")") -- String to Float/ Int
             ||| do ToNum . Get <$> (many1 (letter ||| char '_') <* symbol ")")-- variable
-         ||| do ToString <$> (symbol "toStr" *> symbol "(" *> pExpr <* symbol ")")
+         ||| do ToString <$> (symbol "toStr" *> symbol "(" *> pExpr <* symbol ")") -- Int/ Float to String
 
 pArith :: Parser Expr
 pArith = do t <- pTerm
@@ -106,10 +106,10 @@ pArith = do t <- pTerm
              ||| do Mod t <$> (symbol "mod" *> pExpr)
 
 pFactor :: Parser Expr
-pFactor = pNum ||| pVar ||| pStr ||| pUrgent pExpr
+pFactor = pNum ||| pVar ||| pStr ||| pUrgent pExpr -- basic units
 
 pNum :: Parser Expr
-pNum = pFloat ||| pInt
+pNum = pFloat ||| pInt -- basic data types
 
 pVar :: Parser Expr
 pVar = do Val . StrVal <$> symbol "input" -- input keyword for user input
