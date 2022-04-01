@@ -22,6 +22,7 @@ initLState = LState 0 Leaf False initFunc []
 
 initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be none
 
+--Tree design found in https://www.youtube.com/watch?v=dlHHflOEDpk
 -- Update the list by add/ update the value of the corresponding variable
 updateVars :: Name -> Value -> Int -> Tree Name Value Int -> Tree Name Value Int
 updateVars name value scope Leaf = Node Leaf name value scope Leaf
@@ -30,6 +31,7 @@ updateVars name value scope (Node lt nName nValue nScope rt)
         | name < nName = Node (updateVars name value scope lt) nName nValue nScope rt
         | otherwise = Node lt nName nValue nScope (updateVars name value scope rt)
 
+--
 deleteMax :: Tree Name Value Int -> (Name, Value, Int, Tree Name Value Int)
 deleteMax Leaf = error "Empty Tree"
 deleteMax (Node lt name value scope Leaf) = (name, value, scope, lt)
@@ -37,6 +39,7 @@ deleteMax (Node lt name value scope rt) = (x, y, z, Node lt name value scope rt'
     where (x,y,z, rt') = deleteMax rt
 
 -- Update the list by removing the corresponding variable
+--https://www.seas.upenn.edu/~cis552/12fa/lectures/stub/BST.html
 dropVar :: Name -> Tree Name Value Int -> Tree Name Value Int
 dropVar name Leaf = Leaf
 dropVar name (Node lt nName nValue nScope rt)

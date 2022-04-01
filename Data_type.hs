@@ -39,6 +39,9 @@ data Expr = Val Value -- Literal
           | And Expr Expr
           | Or Expr Expr
 
+{-Using a binary tree to represent our variables
+When adding things and deleting the functions will keep it like a binary search tree so 
+we can find data more efficiently-}
 data Tree name value scope = Leaf | Node (Tree name value scope) name value scope (Tree name value scope)
      deriving (Eq, Ord)
 
