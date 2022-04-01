@@ -66,7 +66,7 @@ data Numeric = Int Int | Float Double -- "Automatic" casting
 --https://hackage.haskell.org/package/base-4.16.0.0/docs/GHC-Float.html#v:int2Double
 instance Num Numeric where
        (+) (Int x) (Int y) = Int (x + y)
-       (+) (Int x) (Float y) = Float (int2Double x + y)
+       (+) (Int x) (Float y) = Float (int2Double x + y) --Implicit casting
        (+) (Float x) (Int y) = Float (x + int2Double y)
        (+) (Float x) (Float y) = Float (x + y)
        (-) (Int x) (Int y) = Int (x - y)
@@ -85,14 +85,14 @@ instance Num Numeric where
 
 instance Eq Numeric where
   (==) (Int x) (Int y) = x == y
-  (==) (Float x) (Int y) = x == int2Double y
+  (==) (Float x) (Int y) = x == int2Double y --Implicit casting
   (==) (Int x) (Float y) = int2Double x == y
   (==) (Float x) (Float y) = x == y
   (/=) x y = not $ x == y
 
 instance Ord Numeric where
   (<=) (Int x) (Int y)= x <= y
-  (<=) (Float x) (Int y) = x <= int2Double y
+  (<=) (Float x) (Int y) = x <= int2Double y --Implicit casting
   (<=) (Int x) (Float y) = int2Double x <= y
   (<=) (Float x) (Float y) = x <= y
   (<) x y = x <= y && x /= y
@@ -101,6 +101,7 @@ instance Ord Numeric where
 
 type Name = String -- Alias
 
+--This part stores the common possible error messages in the program
 boolError = "Non-deterministic condition, action aborted"
 scopeError = "**Invalid/ out-of-scope expression**"
 emptyResult = "**No matching results**"
