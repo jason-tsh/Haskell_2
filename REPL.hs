@@ -56,7 +56,7 @@ tree2List (Node lt nName nValue nScope rt) = [(nName, nValue, nScope)] ++ tree2L
 {-Take old state and new state and go through if new variables have greater scope
     than old state they must be deleted -}
 dropVar' :: LState -> LState -> Tree Name Value Int
-dropVar' st st' = filter (\var -> lst3 var <= scope st) (vars st')
+dropVar' st st' = map filter (\var -> lst3 var <= scope st) (tree2List vars st')
 
 
 -- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
@@ -65,16 +65,16 @@ uniqueFunc name' [] = True
 uniqueFunc name' (x:xs) = name' `elem` map name (x : children x) && uniqueFunc name' (parent x)
 
 -- Check if there is a function with the same name inside the sub-tree & traverse through parent nodes till root (empty list)
-recurSearch :: Name -> [FuncData] -> Maybe FuncData
-recurSearch name' [] = Nothing
+recurSearch :: Name -> [FuncData] -> Either FuncData String
+recurSearch name' [] = Right "No matching functions"
 recurSearch name' (x:xs) = case iterSearch name' (x : children x) of
-                             Just result -> Just result
-                             Nothing -> recurSearch name' (parent x)
+                             Left result -> Left result
+                             Right _ -> recurSearch name' (parent x)
 
 -- Check if there is a function with the same name inside the same level of sub-tree
-iterSearch :: Name -> [FuncData] -> Maybe FuncData
-iterSearch name' [] = Nothing
-iterSearch name' (x:xs) = if name' == name x then Just x else iterSearch name' xs
+iterSearch :: Name -> [FuncData] -> Either FuncData String
+iterSearch name' [] = Right "No matching functions"
+iterSearch name' (x:xs) = if name' == name x then Left x else iterSearch name' xs
 
 -- Update the parent nodes & traverse through them till root (empty list)
 saveFunc :: FuncData -> [FuncData] -> FuncData
@@ -83,14 +83,14 @@ saveFunc tar (dest:rest) = saveFunc dest {children = tar : children dest} (paren
 
 checkCond :: LState -> Expr -> Bool
 checkCond st cond = case eval (vars st) (If cond (Val $ Bool True) (Val $ Bool True)) of
-                      Just (Bool bool) -> bool
+                      Left (Bool bool) -> bool
                       _ -> False
 
 checkScope :: LState -> [Command] -> Bool
 checkScope st [] = True
 checkScope st (x:xs) = case x of
                          (Set var e) -> case eval (vars st) e of
-                                             Just val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
+                                             Left val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
                                              _ -> False
                          (Print e) -> condCheck e $ checkScope st xs
                          (Cond cond x y) -> condCheck cond (blockCheck x) && condCheck cond (blockCheck y)
@@ -102,7 +102,7 @@ checkScope st (x:xs) = case x of
                          _ -> checkScope st xs -- Read, Func & Quit commands
                          where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
-                                                        Just val -> check
+                                                        Left val -> check
                                                         _ -> False
                                funcInit [] = []
                                funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs
@@ -126,34 +126,35 @@ process (Set var e) = do
      st <- lift get
      if errorFlag st then return () else do
      let varScope = case extract var (vars st) of
-                      Just (var, val, vScope) -> vScope
-                      Nothing -> scope st
+                      Left (var, val, vScope) -> vScope
+                      _ -> scope st
      let set e = case eval (vars st) e of
-                   Just val -> st {vars = updateVars var val varScope (vars st)}
-                   Nothing -> st {errorFlag = True}
+                   Left val -> st {vars = updateVars var val varScope (vars st)}
+                   _ -> st {errorFlag = True}
      let exit st = lift $ put st
      case e of
           Val (StrVal "input") -> do inp <- getInputLine "> "
                                      case parse pExpr $ fromMaybe "" inp of
                                         [(e',"")] -> exit $ set e'
                                         _ -> abort st "Invalid input, action aborted"
-          _ -> do Control.Monad.when (isNothing (eval (vars st) e)) $
-                                     outputStrLn "Referred data not found, action aborted"
+          _ -> do case eval (vars st) e of
+                    Right _ -> outputStrLn "Referred data not found, action aborted"
+                    _ -> outputStr ""
                   exit $ set e
 
 process (Print e)
      = do st <- lift get
           if errorFlag st then return () else do
           case eval (vars st) e of
-            Just val -> outputStrLn $ show val
-            Nothing -> abort st "No entry/ valid result found"
+            Left val -> outputStrLn $ show val
+            _ -> abort st "No entry/ valid result found"
           -- Print the result of evaluation
 
 process (Cond cond x y)
      = do st <- lift get
           if errorFlag st then return () else do
           case eval (vars st) cond of
-            Just (Bool bool) -> if bool then batch x else batch y
+            Left (Bool bool) -> if bool then batch x else batch y
             _ -> abort st "Non-deterministic condition, action aborted"
 
 process (Repeat acc cmd)
@@ -227,17 +228,17 @@ process (Func name' argv')
           if errorFlag st then return () else do
           let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
           case func of
-            Just x -> if length argv' == length (argv x)
+            Left x -> if length argv' == length (argv x)
                       then do lift $ put st {scope = scope st + 1, current = x}
                               batch $ zipCommand (argv x) argv' st
                               batch (body x)
                       else abort st "**Invalid number of arguments**"
-            Nothing -> abort st "**Function not found**"
+            Right msg -> abort st msg
           st' <- lift get
           checkError st st'
      where zipCommand [] [] st = []
            zipCommand (x:xs) (y:ys) st = case eval (vars st) y of
-                                        Just y' -> Set x (Val y') : zipCommand xs ys st
+                                        Left y' -> Set x (Val y') : zipCommand xs ys st
                                         _ -> []
 
 process Quit = lift $ lift exitSuccess
