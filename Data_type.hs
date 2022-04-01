@@ -39,8 +39,7 @@ data Expr = Val Value -- Literal
           | And Expr Expr
           | Or Expr Expr
 
-data Tree n v s = Leaf
-               | Node (Tree n v s) n v s (Tree n v s)
+data Tree name value scope = Leaf | Node (Tree name value scope) name value scope (Tree name value scope)
      deriving (Eq, Ord)
 
 
@@ -101,3 +100,9 @@ instance Ord Numeric where
   (>) x y = not $ x <= y
 
 type Name = String -- Alias
+
+boolError = "Non-deterministic condition, action aborted"
+scopeError = "**Invalid/ out-of-scope expression**"
+emptyResult = "**No matching results**"
+duplicateFunc = "**Duplicated function name**"
+scopeParseError = "**Scope/ parse error**"
