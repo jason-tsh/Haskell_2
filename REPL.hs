@@ -112,8 +112,8 @@ checkScope st (x:xs) = case x of
                                funcInit [] = []
                                funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs
 
-checkError :: LState -> LState -> InputT (StateT LState IO) ()
-checkError st st' = if errorFlag st' then lift $ put st else lift $ put st' {scope = scope st, vars = dropVar' st st', current = current st}
+updateState :: LState -> LState -> InputT (StateT LState IO) ()
+updateState st st' = if errorFlag st' then lift $ put st else lift $ put st' {scope = scope st, vars = dropVar' st st', current = current st}
 
 abort :: LState -> String -> InputT (StateT LState IO) ()
 abort st msg = do outputStrLn msg
@@ -180,7 +180,7 @@ process (While cond cmd)
           then process (Cond cond [Repeat 1 cmd, While cond cmd] [])
           else abort st scopeParseError
           st' <- lift get
-          checkError st st'
+          updateState st st'
 
 process (DoWhile cond cmd) = process (Repeat 1 cmd) >> process (While cond cmd) -- Do then While
 
@@ -194,7 +194,7 @@ process (For init cond after cmd)
           then process (Cond cond [While cond (cmd ++ after)] [])
           else abort st scopeParseError
           st' <- lift get
-          checkError st st'
+          updateState st st'
 
 process (Read file)
      = do st <- lift get
@@ -240,7 +240,7 @@ process (Func name' argv')
                       else abort st "**Invalid number of arguments**"
             Right msg -> abort st msg
           st' <- lift get
-          checkError st st'
+          updateState st st'
      where zipCommand [] [] st = []
            zipCommand (x:xs) (y:ys) st = case eval (vars st) y of
                                         Left y' -> Set x (Val y') : zipCommand xs ys st
