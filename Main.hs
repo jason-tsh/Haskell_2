@@ -26,7 +26,7 @@ completeFunc = completeWord Nothing " \t" generator
 generator :: String -> StateT LState IO [Completion] -- Get list of possible words
 generator str = do st <- get
                    return $ map simpleCompletion
-                          $ filter (str `isPrefixOf`) (map fst3 (vars st) ++ map name (funcList  st) ++ commandList)
+                          $ filter (str `isPrefixOf`) (map fst3 (tree2List (vars st)) ++ map name (funcList  st) ++ commandList)
 
 main :: IO ()
 main = do hSetBuffering stdout NoBuffering
