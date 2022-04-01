@@ -108,7 +108,7 @@ lookup3 name (Node lt nName nValue nScope rt)
 
 
 -- Get a particular tuple with 3 elements
-extract :: Ord a => a -> Tree a a a -> Maybe (a, a, a)
+extract :: Ord a => a -> Tree a b c -> Maybe (a, b, c)
 extract name Leaf =  Nothing--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
 extract name (Node lt nName nValue nScope rt)
   | nName == name              = Just (nName, nValue, nScope)

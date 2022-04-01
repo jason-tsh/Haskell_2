@@ -45,7 +45,7 @@ dropVar name (Node lt nName nValue nScope rt)
      | name == nName = case (lt, rt) of
                          (Leaf, _) -> rt
                          (_, Leaf) -> lt
-                         (Node _ _ _ _ _, _) -> Node lt' newName newValue newScope rt
+                         (Node {}, _) -> Node lt' newName newValue newScope rt
                            where (newName, newValue, newScope, lt') = deleteMax lt
 
 tree2List :: Tree Name Value Int -> [(Name, Value, Int)]
@@ -161,7 +161,7 @@ process (Repeat acc cmd)
           if errorFlag st then return () else do
           lift $ put st {scope = scope st + 1}
           if checkScope st {scope = scope st + 1} cmd
-          then if acc > 0 && not (null cmd) 
+          then if acc > 0 && not (null cmd)
                then batch cmd >> process (Repeat (acc - 1) cmd)
                else do st' <- lift get
                        if errorFlag st' then lift $ put st else lift $ put st {vars = dropVar' st st'}
@@ -197,7 +197,7 @@ process (Read file)
             "input" -> do inp <- getInputLine "File: "
                           process (Read $ fromMaybe "" inp)
             _ -> do exist <- lift $ lift $ doesFileExist file
-                    if exist 
+                    if exist
                     then do content <- lift $ lift $ readFile file
                             case parse pBatch content of
                               [(list, "")] -> do st <- lift get
