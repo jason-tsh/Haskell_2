@@ -12,27 +12,48 @@ import System.Console.Haskeline
 import System.Exit
 import System.Directory
 
-data LState = LState { scope :: Int, vars :: [(Name, Value, Int)], errorFlag :: Bool,
+data LState = LState { scope :: Int, vars :: Tree Name Value Int, errorFlag :: Bool,
                        current :: FuncData, funcList :: [FuncData]}
 
 data FuncData = FuncData { name :: Name, argv :: [Name], body :: [Command],
                            parent :: [FuncData], children :: [FuncData]}
 
-initLState = LState 0 [] False initFunc []
+initLState = LState 0 Leaf False initFunc []
 
 initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be none
 
 -- Update the list by add/ update the value of the corresponding variable
-updateVars :: Name -> Value -> Int -> [(Name, Value, Int)] -> [(Name, Value, Int)]
-updateVars name val scope vars = (name, val, scope) : dropVar name vars
+updateVars :: Name -> Value -> Int -> Tree Name Value Int -> Tree Name Value Int
+updateVars name value scope Leaf = Node Leaf name value scope Leaf
+updateVars name value scope (Node lt nName nValue nScope rt)
+        | nName == name = Node lt name value scope rt
+        | name < nName = Node (updateVars name value scope lt) nName nValue nScope rt
+        | otherwise = Node lt nName nValue nScope (updateVars name value scope rt)
+
+deleteMax :: Tree Name Value Int -> (Name, Value, Int, Tree Name Value Int)
+deleteMax Leaf = error "Empty Tree"
+deleteMax (Node lt name value scope Leaf) = (name, value, scope, lt)
+deleteMax (Node lt name value scope rt) = (x, y, z, Node lt name value scope rt')
+    where (x,y,z, rt') = deleteMax rt
 
 -- Update the list by removing the corresponding variable
-dropVar :: Name -> [(Name, Value, Int)] -> [(Name, Value, Int)]
-dropVar name = filter (\var -> fst3 var /= name)
+dropVar :: Name -> Tree Name Value Int -> Tree Name Value Int
+dropVar name Leaf = Leaf
+dropVar name (Node lt nName nValue nScope rt) | name < nName = Node (dropVar name lt) nName nValue nScope rt
+                                             | name > nName = Node lt nName nValue nScope (dropVar name rt)
+                                             | name == nName = 
+                case (lt, rt) of
+                    (Leaf, _) -> rt
+                    (_, Leaf) -> lt
+                    (Node _ _ _ _ _, _) -> Node lt' newName newValue newScope rt
+                        where (newName, newValue, newScope, lt') = deleteMax lt
 
 -- Update the list by removing the local variables
-dropVar' :: LState -> LState -> [(Name, Value, Int)]
+{-Take old state and new state and go through if new variables have greater scope
+    than old state they must be deleted -}
+dropVar' :: LState -> LState -> Tree Name Value Int
 dropVar' st st' = filter (\var -> lst3 var <= scope st) (vars st')
+
 
 -- Check if there is a function instance having the same name inside the sub-tree & traverse through parent nodes till root (empty list)
 uniqueFunc :: Name -> [FuncData] -> Bool
