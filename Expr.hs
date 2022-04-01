@@ -18,7 +18,7 @@ eval vars (Mod x y) = numOp2 vars doMod x y
 eval vars (Pow x y) = numOp2 vars doPow x y
 eval vars (ToNum x) = case x of
                         Get var -> case lookup3 var vars of
-                                     Left (StrVal val) -> Left $ NumVal $ Int $ toInt val
+                                     Left val -> Left val
                                      _ -> Right emptyResult 
                         _ -> eval vars x
 eval vars (ToString x) = Left $ StrVal $ format $ case eval vars x of

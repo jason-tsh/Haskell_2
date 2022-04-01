@@ -2,6 +2,9 @@ module Data_type where
 
 import GHC.Float
 
+-- A note: if keyword 'input' is treated as a variable
+-- then it will likely have the string value of 'input'
+
 -- Commands that will alter the state of the program
 data Command = Set Name Expr -- assign an expression to a variable name
              | Print Expr    -- evaluate an expression and print the result

@@ -86,7 +86,7 @@ pExpr = do Abs <$> (symbol "abs" *> pNumOp ||| pVar) -- accetping only variable 
          ||| pCast
          ||| pArith
               ||| do t <- pTerm
-                     Concat t <$> (symbol "++" *> pExpr)
+                     do Concat t <$> (symbol "++" *> pExpr)
                       ||| return t
 
 pNumOp :: Parser Expr
