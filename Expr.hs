@@ -99,18 +99,22 @@ format ('\'':s) | last s == '\'' = init s
 format s                         = s
 
 -- Get payload of a particular tuple with 3 elements, reduce the layers of Just
-lookup3 :: Eq a => a -> [(a,b,c)] -> Maybe b --https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
-lookup3 _key [] =  Nothing
-lookup3  key ((x,y,_):xys)
-    | key == x  =  Just y
-    | otherwise =  lookup3 key xys
+lookup3 :: Name -> Tree Name Value Int -> Maybe Value --https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+lookup3 name Leaf =  Nothing
+lookup3 name (Node lt nName nValue nScope rt)
+  | nName == name = Just nValue
+  | name < nName = lookup3 name lt
+  | otherwise    = lookup3 name rt
+
 
 -- Get a particular tuple with 3 elements
-extract :: Eq a => a -> [(a, b, c)] -> Maybe (a, b, c)
-extract key [] =  Nothing--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
-extract key ((x,y,z):xys)
-  | key == x  =  Just (x,y,z)
-  | otherwise =  extract key xys
+extract :: Ord a => a -> Tree a a a -> Maybe (a, a, a)
+extract name Leaf =  Nothing--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+extract name (Node lt nName nValue nScope rt)
+  | nName == name              = Just (nName, nValue, nScope)
+  | name < nName               = extract name lt
+  | otherwise                  = extract name rt
+
 
 fst3 :: (a, b, c) -> a -- Get first element of a tuple with 3 elements
 fst3 (a, _, _) = a

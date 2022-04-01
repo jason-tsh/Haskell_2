@@ -39,6 +39,11 @@ data Expr = Val Value -- Literal
           | And Expr Expr
           | Or Expr Expr
 
+data Tree n v s = Leaf
+               | Node (Tree n v s) n v s (Tree n v s)
+     deriving (Eq, Ord)
+
+
 data Value = NumVal Numeric | StrVal String | Bool Bool -- Bool is internally used
   deriving Ord
 
