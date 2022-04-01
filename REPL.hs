@@ -128,7 +128,7 @@ batch = foldr ((>>) . process) (return ())
 process :: Command -> InputT (StateT LState IO) ()
 process (Set var e) = do
      st <- lift get
-     if errorFlag st then return () else do
+     if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
      let varScope = case extract var (vars st) of
                       Left (var, val, vScope) -> vScope
                       _ -> scope st
@@ -148,7 +148,7 @@ process (Set var e) = do
 
 process (Print e)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           case eval (vars st) e of
             Left val -> outputStrLn $ show val
             Right msg -> abort st msg
@@ -156,14 +156,14 @@ process (Print e)
 
 process (Cond cond x y)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           case eval (vars st) cond of
             Left (Bool bool) -> if bool then batch x else batch y
             _ -> abort st boolError
 
 process (Repeat acc cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           lift $ put st {scope = scope st + 1}
           if checkScope st {scope = scope st + 1} cmd
           then if acc > 0 && not (null cmd)
@@ -174,7 +174,7 @@ process (Repeat acc cmd)
 
 process (While cond cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           if checkScope st cmd
           then process (Cond cond [Repeat 1 cmd, While cond cmd] [])
           else abort st scopeParseError
@@ -185,7 +185,7 @@ process (DoWhile cond cmd) = process (Repeat 1 cmd) >> process (While cond cmd) 
 
 process (For init cond after cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           lift $ put st {scope = scope st + 1}
           batch init
           st' <- lift get
@@ -197,7 +197,7 @@ process (For init cond after cmd)
 
 process (Read file)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           case file of
             "input" -> do inp <- getInputLine "File: "
                           process (Read $ fromMaybe "" inp)
@@ -213,7 +213,7 @@ process (Read file)
 
 process (SetFunc name' argv cmd)
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           let func = current st
           if checkScope st [SetFunc name' argv cmd]
           then case name func of
@@ -229,7 +229,7 @@ process (SetFunc name' argv cmd)
 
 process (Func name' argv')
      = do st <- lift get
-          if errorFlag st then return () else do
+          if errorFlag st then Control.Monad.void (outputStrLn previousError) else do
           let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
           case func of
             Left x -> if length argv' == length (argv x)
