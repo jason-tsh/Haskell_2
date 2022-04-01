@@ -43,7 +43,7 @@ data Expr = Val Value -- Literal
 When adding things and deleting the functions will keep it like a binary search tree so 
 we can find data more efficiently-}
 data Tree name value scope = Leaf | Node (Tree name value scope) name value scope (Tree name value scope)
-     deriving (Eq, Ord, Show)
+     deriving (Eq, Ord)
 
 data Value = NumVal Numeric | StrVal String | Bool Bool -- Bool is internally used
   deriving Ord

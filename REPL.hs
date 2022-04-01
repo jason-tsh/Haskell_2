@@ -256,9 +256,7 @@ process Quit = lift $ lift exitSuccess
 repl :: InputT (StateT LState IO) ()
 repl = do inp <- getInputLine "> "
           case parse pCommand $ fromMaybe "" inp of
-            [(cmd, "")] -> do process cmd -- Must parse entire input
-                              st <- lift get
-                              outputStrLn $ show $ vars st
+            [(cmd, "")] -> process cmd -- Must parse entire input
             _ -> outputStrLn "**Parse error**"
           lift clear
           repl
