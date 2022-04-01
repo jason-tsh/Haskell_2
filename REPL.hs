@@ -138,7 +138,7 @@ process (Set var e) = do
                                         [(e',"")] -> exit $ set e'
                                         _ -> abort st "Invalid input, action aborted"
           _ -> do case eval (vars st) e of
-                    Right _ -> outputStrLn "Referred data not found, action aborted"
+                    Right msg -> outputStrLn msg
                     _ -> outputStr ""
                   exit $ set e
 
@@ -147,7 +147,7 @@ process (Print e)
           if errorFlag st then return () else do
           case eval (vars st) e of
             Left val -> outputStrLn $ show val
-            _ -> abort st "No entry/ valid result found"
+            Right msg -> abort st msg
           -- Print the result of evaluation
 
 process (Cond cond x y)
@@ -155,7 +155,7 @@ process (Cond cond x y)
           if errorFlag st then return () else do
           case eval (vars st) cond of
             Left (Bool bool) -> if bool then batch x else batch y
-            _ -> abort st "Non-deterministic condition, action aborted"
+            _ -> abort st boolError
 
 process (Repeat acc cmd)
      = do st <- lift get
@@ -166,14 +166,14 @@ process (Repeat acc cmd)
                then batch cmd >> process (Repeat (acc - 1) cmd)
                else do st' <- lift get
                        if errorFlag st' then lift $ put st else lift $ put st {vars = dropVar' st st'}
-          else abort st "**Scope/ parse error**"
+          else abort st scopeParseError
 
 process (While cond cmd)
      = do st <- lift get
           if errorFlag st then return () else do
           if checkScope st cmd
           then process (Cond cond [Repeat 1 cmd, While cond cmd] [])
-          else abort st "**Scope/ parse error**"
+          else abort st scopeParseError
           st' <- lift get
           checkError st st'
 
@@ -187,7 +187,7 @@ process (For init cond after cmd)
           st' <- lift get
           if checkScope st' (init ++ Cond cond [Quit] [Quit] : after ++ cmd)
           then process (Cond cond [While cond (cmd ++ after)] [])
-          else abort st "**Scope/ parse error**"
+          else abort st scopeParseError
           st' <- lift get
           checkError st st'
 
@@ -203,7 +203,7 @@ process (Read file)
                             case parse pBatch content of
                               [(list, "")] -> do st <- lift get
                                                  if checkScope st list then batch list
-                                                                       else abort st "**Scope/ parse error**"
+                                                                       else abort st scopeParseError
                               _ -> abort st "File parse error"
                     else abort st "File does not exist"
 
@@ -214,14 +214,14 @@ process (SetFunc name' argv cmd)
           if checkScope st [SetFunc name' argv cmd]
           then case name func of
                  "" -> do if name' `elem` map name (funcList st)
-                          then abort st "**Duplicated function name**"
+                          then abort st duplicateFunc
                           else lift $ put st {funcList = FuncData name' argv cmd [] [] : funcList st}
                  _ -> do if name' `elem` map name (funcList st) && uniqueFunc name' [func]
-                         then abort st "**Duplicated function name**"
+                         then abort st duplicateFunc
                          else do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
                                  lift $ put st {current = func {children = FuncData name' argv cmd [func] [] : children func},
                                                 funcList = root : filter (\x -> name x /= name root) (funcList st)}
-          else abort st "**Scope/ parse error**"
+          else abort st scopeParseError
 
 process (Func name' argv')
      = do st <- lift get
