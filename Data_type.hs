@@ -4,6 +4,7 @@ import GHC.Float
 
 -- A note: if keyword 'input' is treated as a variable
 -- then it will likely have the string value of 'input'
+-- Never use 'input' as function argument's name!!!
 
 -- Commands that will alter the state of the program
 data Command = Set Name Expr -- assign an expression to a variable name
@@ -16,7 +17,7 @@ data Command = Set Name Expr -- assign an expression to a variable name
              | Read Name -- Read a file (treated as typed by user, no local scope created)
              | SetFunc Name [Name] [Command] -- Set function
              | Func Name [Expr] -- Apply function (will create a local scope)
-             | Quit -- Unconditional termination
+             | Quit -- Unconditional termination of the program
 
 -- Expressions that will collapse into a value
 data Expr = Val Value -- Literal
@@ -42,13 +43,11 @@ data Expr = Val Value -- Literal
           | And Expr Expr
           | Or Expr Expr
 
-{-Using a binary tree to represent our variables
-When adding things and deleting the functions will keep it like a binary search tree so 
-we can find data more efficiently-}
+-- Binary tree for fast variable lookup & storage
 data Tree name value scope = Leaf | Node (Tree name value scope) name value scope (Tree name value scope)
      deriving (Eq, Ord)
 
---Used to represent the value stored by some variable or used in some calculation
+-- Basic data units of the program
 data Value = NumVal Numeric | StrVal String | Bool Bool -- Bool is internally used
   deriving Ord
 
@@ -67,11 +66,11 @@ instance Show Value where -- Remove internal identifiers
   show (StrVal val) = show val
   show (Bool val) = show val
 
---Used to group Ints and Floats
+-- Basic numeric units
 data Numeric = Int Int | Float Double -- "Automatic" casting
 
 --https://hackage.haskell.org/package/base-4.16.0.0/docs/GHC-Float.html#v:int2Double
--- In the event that we try to do math with an Int and a Float, the result will be a Float.
+-- Values are automatically casted to Float if Float is involved
 instance Num Numeric where
        (+) (Int x) (Int y) = Int (x + y)
        (+) (Int x) (Float y) = Float (int2Double x + y) --Implicit casting

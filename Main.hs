@@ -10,11 +10,11 @@ import System.Console.Haskeline
 settings :: Settings (StateT LState IO)
 settings = Settings {
             complete = completeFunc,
-            historyFile = Just "hist.txt", --Where history will be saved
-            autoAddHistory = True --If history should automatically be written to the history file
+            historyFile = Just "hist.txt", -- history file
+            autoAddHistory = True -- automatically write history to the history file
             }
 
-commandList :: [String] -- keywords (some are not included)
+commandList :: [String] -- keywords (some are not included, mainly single character ones)
 commandList = ["input", "print", "if", "then", "else",
                "repeat", "while", "do", "for", "read",
                "void", "quit", "abs", "mod", "&&", "||",
@@ -26,9 +26,9 @@ completeFunc = completeWord Nothing " \t" generator
 generator :: String -> StateT LState IO [Completion] -- Get list of possible words
 generator str = do st <- get
                    return $ map simpleCompletion
-                          $ filter (str `isPrefixOf`) (map fst3 (tree2List (vars st)) 
-                                                    ++ map name (funcList  st)
-                                                    ++ commandList)
+                          $ filter (str `isPrefixOf`) (map fst3 (tree2List (vars st)) -- list of variables
+                                                    ++ map name (funcList  st) -- list of functions
+                                                    ++ commandList) -- keywords
 
 main :: IO ()
 main = do hSetBuffering stdout NoBuffering
