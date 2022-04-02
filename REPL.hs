@@ -232,7 +232,6 @@ process Quit = lift $ lift exitSuccess
 -- Read, Eval, Print Loop
 -- This reads and parses the input using the pCommand parser, and calls
 -- 'process' to process the command.
--- 'process' will call 'repl' when done, so the system loops.
 repl :: InputT (StateT LState IO) ()
 repl = do inp <- getInputLine "> "
           case parse pCommand $ fromMaybe "" inp of
