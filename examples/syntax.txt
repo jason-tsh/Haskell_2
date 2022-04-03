@@ -1,0 +1,57 @@
+-- **This file does not discuss the scope & checking for list of commands**
+-- **Please refer to scope.txt for more information**
+
+-- For most part of the problem it is safe to type commands in Haskell format,
+-- although you can type in C format if you want.
+
+-- Examples:
+a = abs 1 -- valid
+a = abs (1) -- also valid with C-style parentheses
+a = abs (-1) -- also valid, please see the note below*
+
+-- *parentheses are needed for all negative literals
+
+-- In addition, there isn't a *command* to treat user's inputs as Strings.
+-- Instead, you just add quotes around them.
+
+-- Examples:
+a = "abs 1" -- valid
+a = " abs 1 " -- valid, all whitespaces are preserved
+a = "" -- valid (empty string)
+-- a = """ -- invalid, double quotes are not supported (using single quote maybe?)
+
+-- Furthermore, for conditional statements, loops & functions,
+-- the language adopts the C format as Haskell does not contain these parts.
+-- However, the semi-colon rule for the bodies is supported but not required,
+-- which means you can type like other normal commands inside the bodies.
+-- Note: as 'repeat' command only takes an integer, parentheses are not needed around it.
+
+-- Examples:
+repeat 2 {print "line 1" ; print "line 2" ;} -- typed in console style, comments are not supported
+repeat 1 {b = 2 print b print b ^ 2 print b mod b} -- semi-colons are omitted, resulting in uglier code
+repeat 1 {
+    print 1 -- typed in file style, semi-colons are omitted
+    print 2 -- comments are allowed here
+}
+repeat 10 {} -- empty loops
+repeat 0 {print "error"} -- effectively empty loop
+
+if (1 /= 2) { -- Boolean condition must be surrounded by parentheses
+    print "1 /= 2"
+} else { -- optional, just like C
+    print "Error"
+}
+if (1 == 1) {} else {} -- valid as long as there is a condition
+
+-- Moreover, for-loops & functions accept multiple arguments seperated by commas.
+
+-- Examples:
+for (a = 1, b = a, c = 2 ; 1 == 2 ; a = a - 1, b = a * 2, c = abs a) {}
+void test_function(a, b, c, d, e, f) {}
+test_function (1, 2, 3, 4, 5, 6)
+
+-- As comments ends with a newline character '\n',
+-- one cannot type comments inside bodies of blocks in console mode.
+-- However, one can type those after the bodies like those above.
+
+---End of syntax.txt---

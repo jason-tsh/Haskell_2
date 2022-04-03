@@ -18,7 +18,7 @@ commandList :: [String] -- keywords (some are not included, mainly single charac
 commandList = ["input", "print", "if", "then", "else",
                "repeat", "while", "do", "for", "read",
                "void", "quit", "abs", "mod", "&&", "||",
-               "++", "toNum", "toStr"]
+               "!(", "==", "++", "toNum", "toStr"]
 
 completeFunc :: CompletionFunc (StateT LState IO)
 completeFunc = completeWord Nothing " \t" generator

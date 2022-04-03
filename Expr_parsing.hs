@@ -65,9 +65,8 @@ pHead p = do fst <- p
 -- Parse the body of a loop/ function
 pBody :: Parser [Command]
 pBody = do symbol "{" *> many pComment
-           do fst <- pCommand
-              rest <- many (many (symbol ";") *> many pComment *> pCommand)
-              many pComment *> symbol "}"
+           do fst <- pCommand <* many (symbol ";") <* many pComment
+              rest <- many (pCommand <* many (symbol ";") <* many pComment) <* symbol "}"
               return (fst:rest)
             ||| do symbol "}" >> return [] -- empty body
 

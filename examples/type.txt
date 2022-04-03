@@ -1,0 +1,16 @@
+-- In this language we use dynamic & weak typying,
+-- which means varaibles can be reassigned as different types &
+-- implicit casting is employed in different part of this language.
+
+-- Examples:
+a = "1" -- String
+a = "" -- also String
+a = 1 -- Integer
+a = 1.0 -- Float form of '1', if you want
+a = 1.1 -- Float
+
+print "Value of 'a': " ++ a -- valid as implicit casting is taken place
+print "Value of 'a': " ++ toStr(a) -- valid although being redundant
+print "Value of 'a': " ++ toNum(a) -- also valid via implicit casting although logically incorrect
+
+---End of type.txt---
