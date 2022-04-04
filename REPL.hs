@@ -73,36 +73,38 @@ checkCond st cond = case eval (vars st) (If cond (Val $ Bool True) (Val $ Bool T
 
 checkScope :: LState -> [Command] -> Bool
 checkScope st [] = True
-checkScope st (x:xs) = case x of
-                         (Set var e) -> case eval (vars st) e of
-                                          Left (StrVal "input") -> checkScope st {vars = updateVars var (NumVal (Int 0)) (scope st) (vars st)} xs
-                                          Left val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
-                                          _ -> False
-                         (Print e) -> condCheck e $ checkScope st xs
-                         (Cond cond x y) -> condCheck cond (blockCheck st x) && condCheck cond (blockCheck st y)
-                         (Repeat acc cmd) -> blockCheck st cmd
-                         (While cond cmd) -> condCheck cond $ blockCheck st cmd
-                         (DoWhile cond cmd) -> condCheck cond $ blockCheck st cmd
-                         (For init cond after cmd) -> condCheck cond $ blockCheck st (init ++ after ++ cmd)
-                         (SetFunc name' argv cmd) ->
-                              do let func = current st
-                                 case name func of
-                                   "" -> notElem name' (map name (funcList st)) && blockCheck st {funcList = FuncData name' argv cmd [] [] : funcList st} (funcInit argv ++ cmd)
-                                   _ -> not (name' `elem` map name (funcList st) && uniqueFunc name' [func]) && (do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
-                                                                                                                    blockCheck st {current = func {children = FuncData name' argv cmd [func] [] : children func},
-                                                                                                                                   funcList = root : filter (\x -> name x /= name root) (funcList st)} (funcInit argv ++ cmd))
-                         (Func name' argv') -> do let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
-                                                  case func of
-                                                    Left x -> (length argv' == length (argv x)) && checkScope st xs
-                                                    Right msg -> False
-                         (Read file) -> checkScope st xs
-                         Quit -> True
-                         where blockCheck st cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
-                               condCheck cond check = case eval (vars st) cond of
-                                                        Left val -> check
-                                                        _ -> False
-                               funcInit [] = []
-                               funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs
+checkScope st (x:xs) = 
+     case x of
+       (Set var e) -> case eval (vars st) e of
+                        Left (StrVal "input") -> checkScope st {vars = updateVars var (NumVal (Int 1)) (scope st) (vars st)} xs
+                        Left val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
+                        _ -> False
+       (Print e) -> condCheck e $ checkScope st xs
+       (Cond cond x y) -> condCheck cond (blockCheck st x) && condCheck cond (blockCheck st y)
+       (Repeat acc cmd) -> blockCheck st cmd
+       (While cond cmd) -> condCheck cond $ blockCheck st cmd
+       (DoWhile cond cmd) -> condCheck cond $ blockCheck st cmd
+       (For init cond after cmd) -> condCheck cond $ blockCheck st (init ++ after ++ cmd)
+       (SetFunc name' argv cmd) ->
+         do let func = current st
+            case name func of
+              "" -> notElem name' (map name (funcList st)) && blockCheck st {funcList = FuncData name' argv cmd [] [] : funcList st} (funcInit argv ++ cmd)
+              _ -> not (name' `elem` map name (funcList st) && uniqueFunc name' [func]) &&
+                       (do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
+                           blockCheck st {current = func {children = FuncData name' argv cmd [func] [] : children func},
+                                          funcList = root : filter (\x -> name x /= name root) (funcList st)} (funcInit argv ++ cmd))
+       (Func name' argv') -> do let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
+                                case func of
+                                  Left x -> (length argv' == length (argv x)) && checkScope st xs
+                                  Right msg -> False
+       (Read file) -> checkScope st xs
+       Quit -> True
+     where blockCheck st cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
+           condCheck cond check = case eval (vars st) cond of
+                                    Left val -> check
+                                    _ -> False
+           funcInit [] = []
+           funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs
 
 updateState :: LState -> LState -> InputT (StateT LState IO) ()
 updateState st st' = if errorFlag st' then lift $ put st else lift $ put st' {scope = scope st, vars = dropVar st st', current = current st}
