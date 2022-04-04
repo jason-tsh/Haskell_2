@@ -1,0 +1,46 @@
+-- This language is imperative, block-strutured.
+-- This implies that it is similar to C with some extra features (and less features).
+-- One example will be the support towards nested functions.
+
+-- This file shows some recommended usage of this language.
+
+-- #1: Libraries
+-- It is encouraged to write some libraries and read them (in a way import) to
+-- minimize the size of a program.
+
+-- Due to the global variable & function property, it is wise to add a file-wide buffer for
+-- these libraries.
+-- Note: functions are designed to be 'void' to rule out the need for type check.
+
+-- Examples: (assume this is a library file named "math_lib.hs")
+math_lib_buffer = 0 -- initialize a library buffer with a probably unique name
+
+void add(x, y) {
+    math_lib_buffer = x + y -- write the result to buffer
+}
+
+void sub(x, y) {
+    math_lib_buffer = x - y -- same as above
+}
+
+-- and so on...
+-- This practice ensures a clear source for user to gain the output.
+-- This also tells why functions cannot be redefined to explicitly
+-- display conflicts in libraries by outputting errors.
+
+-- #2: Main function
+-- As files will not enter a local scope, an error in one of the files can possibly
+-- contaminate the whole program.
+-- Thus, it is wise to encapsulate the whole file (not libraries) into a main function
+-- before calling it.
+
+-- Examples: (assume this is a file named "hello_world.hs")
+
+void hello_world_main() {
+    print "hello_world"
+}
+
+hello_world_main()
+
+-- Note: As functions cannot be redefined, use seperate names for the main functions
+--       of the files.

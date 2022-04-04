@@ -47,8 +47,9 @@ if (1 == 1) {} else {} -- valid as long as there is a condition
 
 -- Examples:
 for (a = 1, b = a, c = 2 ; 1 == 2 ; a = a - 1, b = a * 2, c = abs a) {}
-void test_function(a, b, c, d, e, f) {}
-test_function (1, 2, 3, 4, 5, 6)
+void test_function(a, b, c, d, e, f) {print a ; print b}
+print "print two numbers:"
+test_function (input, input, 3, 4, 5, 6) -- flexibility with 'input' keyword
 
 -- As comments ends with a newline character '\n',
 -- one cannot type comments inside bodies of blocks in console mode.
