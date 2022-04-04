@@ -20,7 +20,7 @@ eval vars (Pow x y) = numOp2 vars doPow x y
 eval vars (ToNum x) = case x of
                         Get var -> case lookup3 var vars of
                                      Left val -> Left val
-                                     _ -> Right emptyResult 
+                                     _ -> Right $ emptyResult var
                         _ -> eval vars x
 eval vars (ToString x) = case eval vars x of
                            Left val -> Left $ StrVal $ format $ show val
@@ -112,15 +112,15 @@ format s                         = s
 
 -- Get payload of a particular tuple with 3 elements, reduce the layers of Left
 lookup3 :: Name -> Tree Name Value Int -> Either Value String --https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
-lookup3 name Leaf =  Right emptyResult
+lookup3 name Leaf =  Right $ emptyResult name
 lookup3 name (Node lt nName nValue nScope rt)
   | nName == name = Left nValue
   | name < nName = lookup3 name lt
   | otherwise    = lookup3 name rt
 
 -- Get a particular tuple with 3 elements
-extract :: Ord a => a -> Tree a b c -> Either (a, b, c) String
-extract name Leaf =  Right emptyResult--https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
+extract :: Name -> Tree Name Value Int -> Either (Name, Value, Int) String
+extract name Leaf =  Right $ emptyResult name --https://hackage.haskell.org/package/base-4.16.0.0/docs/src/GHC-List.html
 extract name (Node lt nName nValue nScope rt)
   | nName == name              = Left (nName, nValue, nScope)
   | name < nName               = extract name lt

@@ -1,1 +1,50 @@
+-- To begin with, every identifier must be unique in this language.
+-- This means that if there is a global version of a variable,
+-- any attempt to modify/ declare a 'local' version of it will only alter
+-- the original copy. (if there isn't then a local variable will be create)
+
+-- Examples:
+a = 1 -- valid, global variable
+repeat 2 {a = 2 ; print a} -- valid, but commands are applied towards the global one
+repeat 2 {b = 2 ; print b} -- valid, a local variable is created & destoryed
+
+-- For functions, the arguments are passed by value if the above rule does not apply.
+-- Note: Do not use the word 'input' as left-hand side value or argument name
+--       or else undefined behaviours are almost certain to take place.
+
+-- Examples:
+void func(a, b, c, d) {
+    a = a + 1 -- valid, modifying a global variable
+    b = c + d -- valid, modifying a local variable
+    print a ++ b -- valid, implicit casting takes place
+}
+
+func(1, a, 0, 0) -- valid, all passed by values (print "20")
+
+-- For recursive functions, a driver function should be provided outside the body
+-- as nested functions are allowed here. However, functions in the same scope or
+-- lower (more global) scopes cannot share the same name.
+-- (though local copies of same function is allowed)
+
+-- Examples:
+void recur_driver(x) {
+    result = 0
+    void recur_body(x) {
+        if (x < 10) {
+            recur_body(x + 1)
+        } else {
+            result = x
+        }
+    }
+    recur_body(x)
+    print result
+}
+
+recur_driver(1) -- valid, print 10
+-- recur_body(1) -- invalid, lcoal functions are not visible from the outside
+
+-- For files, as they are considered as a sequence of commands,
+-- they will not enter a local scope and all functions & variables declared are stored.
+-- You may need to exit the program to get rid of them.
+
 ---End of scope.txt---

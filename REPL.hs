@@ -51,14 +51,14 @@ uniqueFunc name' (x:xs) = name' `elem` map name (x : children x) && uniqueFunc n
 
 -- Check if there is a function with the same name inside the sub-tree & traverse through parent nodes till root (empty list)
 recurSearch :: Name -> [FuncData] -> Either FuncData String
-recurSearch name' [] = Right emptyFunction
+recurSearch name' [] = Right $ emptyFunction name'
 recurSearch name' (x:xs) = case iterSearch name' (x : children x) of
                              Left result -> Left result
                              Right _ -> recurSearch name' (parent x)
 
 -- Check if there is a function with the same name inside the same level of sub-tree
 iterSearch :: Name -> [FuncData] -> Either FuncData String
-iterSearch name' [] = Right emptyFunction
+iterSearch name' [] = Right $ emptyFunction name'
 iterSearch name' (x:xs) = if name' == name x then Left x else iterSearch name' xs
 
 -- Update the parent nodes & traverse through them till root (empty list)
@@ -79,14 +79,25 @@ checkScope st (x:xs) = case x of
                                           Left val -> checkScope st {vars = updateVars var val (scope st) (vars st)} xs
                                           _ -> False
                          (Print e) -> condCheck e $ checkScope st xs
-                         (Cond cond x y) -> condCheck cond (blockCheck x) && condCheck cond (blockCheck y)
-                         (Repeat acc cmd) -> blockCheck cmd
-                         (While cond cmd) -> condCheck cond $ blockCheck cmd
-                         (DoWhile cond cmd) -> condCheck cond $ blockCheck cmd
-                         (For init cond after cmd) -> condCheck cond $ blockCheck (init ++ after ++ cmd)
-                         (SetFunc name argv cmd) -> blockCheck (funcInit argv ++ cmd)
-                         _ -> checkScope st xs -- Read,  SetFunc, Func & Quit commands
-                         where blockCheck cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
+                         (Cond cond x y) -> condCheck cond (blockCheck st x) && condCheck cond (blockCheck st y)
+                         (Repeat acc cmd) -> blockCheck st cmd
+                         (While cond cmd) -> condCheck cond $ blockCheck st cmd
+                         (DoWhile cond cmd) -> condCheck cond $ blockCheck st cmd
+                         (For init cond after cmd) -> condCheck cond $ blockCheck st (init ++ after ++ cmd)
+                         (SetFunc name' argv cmd) ->
+                              do let func = current st
+                                 case name func of
+                                   "" -> notElem name' (map name (funcList st)) && blockCheck st {funcList = FuncData name' argv cmd [] [] : funcList st} (funcInit argv ++ cmd)
+                                   _ -> not (name' `elem` map name (funcList st) && uniqueFunc name' [func]) && (do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
+                                                                                                                    blockCheck st {current = func {children = FuncData name' argv cmd [func] [] : children func},
+                                                                                                                                   funcList = root : filter (\x -> name x /= name root) (funcList st)} (funcInit argv ++ cmd))
+                         (Func name' argv') -> do let func = if null $ name (current st) then iterSearch name' (funcList st) else recurSearch name' [current st]
+                                                  case func of
+                                                    Left x -> (length argv' == length (argv x)) && checkScope st xs
+                                                    Right msg -> False
+                         (Read file) -> checkScope st xs
+                         Quit -> True
+                         where blockCheck st cmd = checkScope st {scope = scope st + 1} cmd && checkScope st xs
                                condCheck cond check = case eval (vars st) cond of
                                                         Left val -> check
                                                         _ -> False
@@ -200,10 +211,10 @@ process (SetFunc name' argv cmd)
           if checkScope st [SetFunc name' argv cmd]
           then case name func of
                  "" -> do if name' `elem` map name (funcList st)
-                          then abort st duplicateFunc
+                          then abort st $ duplicateFunc name'
                           else lift $ put st {funcList = FuncData name' argv cmd [] [] : funcList st}
                  _ -> do if name' `elem` map name (funcList st) && uniqueFunc name' [func]
-                         then abort st duplicateFunc
+                         then abort st $ duplicateFunc name'
                          else do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
                                  lift $ put st {current = func {children = FuncData name' argv cmd [func] [] : children func},
                                                 funcList = root : filter (\x -> name x /= name root) (funcList st)}
