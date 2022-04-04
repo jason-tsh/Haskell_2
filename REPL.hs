@@ -203,8 +203,8 @@ process (Read file)
                               [(list, "")] -> do st <- lift get
                                                  if checkScope st list then batch list
                                                                        else abort st scopeParseError
-                              _ -> abort st "**File parse error**"
-                    else abort st "**File does not exist**"
+                              _ -> abort st $ "**File parse error -- " ++ file ++ "**"
+                    else abort st $ "**File does not exist -- " ++ file ++ "**"
 
 process (SetFunc name' argv cmd)
      = do st <- lift get
