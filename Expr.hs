@@ -1,7 +1,6 @@
 module Expr where
 
 import Data_type
-import Expr_parsing
 import GHC.Float
 
 --Evaluates an expression given existing variables, and returns a new set of variables after evaluation
