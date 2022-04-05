@@ -123,7 +123,7 @@ process (Func name' argv')
                               else abort st "**Invalid number of arguments**"
                     Right msg -> abort st msg
                   updateState st
-     where zipCommand [] [] st = []
+     where zipCommand [] [] st = [] -- non-exhaustive as parser already filtered out remaining possiblities
            zipCommand (x:xs) (y:ys) st = case eval (vars st) y of
                                            Left y' -> Set x (Val y') : zipCommand xs ys st
                                            _ -> []
