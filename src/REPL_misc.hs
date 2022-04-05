@@ -10,7 +10,7 @@ initLState = LState 0 Leaf False initFunc []
 
 initFunc = FuncData "" [] [] [] [] -- Parent attribute is a list as there can be none
 
---Tree design found in https://www.youtube.com/watch?v=dlHHflOEDpk
+-- Tree design found in https://www.youtube.com/watch?v=dlHHflOEDpk
 -- Update the list by add/ update the value of the corresponding variable
 updateVars :: Name -> Value -> Int -> Tree Name Value Int -> Tree Name Value Int
 updateVars name value scope Leaf = Node Leaf name value scope Leaf
