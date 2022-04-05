@@ -3,7 +3,7 @@ module Expr where
 import Data_type
 import GHC.Float
 
---Evaluates an expression given existing variables, and returns a new set of variables after evaluation
+--Evaluates an expression given existing variables, and returns a result after evaluation
 eval :: Tree Name Value Int -> -- Variable name to value mapping
         Expr -> -- Expression to evaluate
         Either Value String -- Result (if no errors such as missing variables)

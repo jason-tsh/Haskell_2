@@ -2,7 +2,7 @@ module Data_type where
 
 import GHC.Float
 
--- A note: if keyword 'input' is treated as a variable
+-- Note: if keyword 'input' is treated as a variable
 -- then it will likely have the string value of 'input'
 -- Never use 'input' as function argument's name!!!
 

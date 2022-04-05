@@ -43,7 +43,7 @@ pCond = do cond <- symbol "if" *> symbol "(" *> pBools <* symbol ")" -- non-empt
            true <- pBody -- body of 'then' part
            do Cond cond true <$> (symbol "else" *> pBody) -- body of 'else' part
             ||| return (Cond cond true []) -- there can be no 'else' part
-         ||| do acc <- symbol "repeat" *> many1 digit -- only integer is accepted
+         ||| do acc <- symbol "repeat" *> many1 digit -- only positive integer is accepted
                 Repeat (toInt acc) <$> pBody
          ||| do cond <- symbol "while" *> symbol "(" *> pBools <* symbol ")" -- non-empty list of boolean expressions
                 While cond <$> pBody

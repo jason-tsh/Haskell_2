@@ -1,7 +1,8 @@
--- To begin with, every identifier must be unique in this language.
+-- To begin with, every identifier for variables/ functions must be unique in this language.
 -- This means that if there is a global version of a variable,
 -- any attempt to modify/ declare a 'local' version of it will only alter
 -- the original copy. (if there isn't then a local variable will be create)
+-- Note: function 'a' & variable 'a' are different and can coexist.
 
 -- Examples:
 a = 1 -- valid, global variable
