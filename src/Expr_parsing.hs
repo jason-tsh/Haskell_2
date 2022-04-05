@@ -13,7 +13,7 @@ pBatch = do many pComment -- comment before/ after command
 
 -- Parse comments denoted by "--"
 pComment :: Parser ()
-pComment = symbol "--" *> many (sat (/= '\n')) *> space -- ignoring comments
+pComment = (symbol "--" ||| symbol "//") *> many (sat (/= '\n')) *> space -- ignoring comments
 
 -- Parse a command from the user
 pCommand :: Parser Command

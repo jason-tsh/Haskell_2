@@ -103,7 +103,7 @@ checkScope st (x:xs) =
                                     Left val -> check
                                     _ -> False
            funcInit [] = []
-           funcInit (x:xs) = Set x (Val $ NumVal $ Int 0) : funcInit xs -- setup local variables for functions
+           funcInit (x:xs) = Set x (Val $ NumVal $ Int 1) : funcInit xs -- setup local variables for functions
 
 -- It stores the updated state if no errors occur & filter out local variables
 updateState :: LState -> InputT (StateT LState IO) ()

@@ -101,15 +101,11 @@ process (SetFunc name' argv cmd)
                do let func = current st -- current function being executed
                   if checkScope st [SetFunc name' argv cmd] -- if the function is properly formed
                   then case name func of
-                         "" -> do if name' `elem` map name (funcList st) -- not inside any functions
-                                  then abort st $ duplicateFunc name'
-                                  else lift $ put st {funcList = FuncData name' argv cmd [] [] : funcList st}
-                         _ -> do if name' `elem` map name (funcList st) && uniqueFunc name' [func] -- inside a function
-                                 then abort st $ duplicateFunc name'
-                                 else do let root = saveFunc (FuncData name' argv cmd [func] []) [func]
-                                         lift $ put st {current = func {children = FuncData name' argv cmd [func] [] : children func},
-                                                        funcList = root : filter (\x -> name x /= name root) (funcList st)}
-                  else abort st scopeParseError
+                         "" -> lift $ put st {funcList = FuncData name' argv cmd [] [] : funcList st}
+                         _ -> do let root = saveFunc (FuncData name' argv cmd [func] []) [func] -- root node of the function sub-tree
+                                 lift $ put st {current = func {children = FuncData name' argv cmd [func] [] : children func},
+                                                funcList = root : filter (\x -> name x /= name root) (funcList st)}
+                  else abort st $ scopeParseError ++ " or " ++ duplicateFunc name' -- both can result in error
 
 process (Func name' argv')
      = do st <- lift get -- get initial state

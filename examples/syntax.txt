@@ -51,8 +51,7 @@ void test_function(a, b, c, d, e, f) {print a ; print b}
 print "print two numbers:"
 test_function (input, input, 3, 4, 5, 6) -- flexibility with 'input' keyword
 
--- As comments ends with a newline character '\n',
--- one cannot type comments inside bodies of blocks in console mode.
--- However, one can type those after the bodies like those above.
+-- Comments are not allowed in console mode.
+-- However, one can type those after the bodies like those above using prefix "//" or "--".
 
 ---End of syntax.txt---
